@@ -3,6 +3,7 @@
 
 #include "irc.hpp"
 #include "User.hpp"
+#include "Channel.hpp"
 #include <exception>
 
 #define MAX_CLIENT 10
@@ -40,7 +41,7 @@ class Server
 		std::vector<User> _users;
 		std::map<std::string, ptrFonction> _serverCmd;
 
-		// std::map<std::string, Channel>	_channels;
+		std::map<std::string, Channel>	_channels;
 
 		std::set<User, userComp>		_bannedUsers;
 		bool		_isOn;
@@ -48,10 +49,13 @@ class Server
 
 		void	__handleConnection(void);
 		void	__handlePackets(void);
-		void	__authUser(User const &user);
+		void	__authUser(User &user);
 		void	__sendWelcomeMsg(User const &user);
 		std::map<std::string, ptrFonction>	__initCmd();
 		std::vector<std::string>			__parseCmd(std::string str);
+		void	__joinChannel(User const &user, std::string const &msg);
+		void	__disconnectUser(User const &user, std::size_t const &i);
+		void	__leaveChannel(User const &user, std::string const &name);
 
 	public:
 		Server(uint16_t const &port, std::string const &passwd);

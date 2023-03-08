@@ -15,17 +15,21 @@ Server::Server(uint16_t const &port, std::string const &passwd): _password(passw
 	if (_fd == -1)
 		throw (ServerFailureException("Socket creation failed"));
 	int temp = 1;
+
 	if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &temp, sizeof(temp)) < 0)
 		throw (ServerFailureException("Socket creation failed"));
 	if (fcntl(_fd, F_SETFL, O_NONBLOCK) < 0)
 		throw (ServerFailureException("Socket creation failed"));
+
 	_address.sin_family = AF_INET;
 	_address.sin_addr.s_addr = INADDR_ANY;
 	_address.sin_port = htons(port);
+
     if (bind(_fd, (struct sockaddr *)&_address, sizeof(_address)) < 0)
 		throw (ServerFailureException("Bind socket to port failed"));
 	if (listen(_fd, MAX_CLIENT) < 0)
 		throw (ServerFailureException("Start listening failed"));
+
 	_pollingList.push_back(pollfd());
 	_pollingList[0].fd = _fd;
 	_pollingList[0].events = POLLIN;
@@ -55,7 +59,7 @@ void	Server::__sendWelcomeMsg(User const &user)
 	// std::string content = ":localhost 001 bastien Welcome\r\n";
 }
 
-void	Server::__authUser(User const &user)
+void	Server::__authUser(User &user)
 {
 	if (user.getPassword() != _password)
 	{
@@ -65,6 +69,10 @@ void	Server::__authUser(User const &user)
 		return;
 	}
 	__sendWelcomeMsg(user);
+	if (_users.size() != 0)
+		user.setId(_users.back().getId() + 1);
+	else
+		user.setId(0);
 	_users.push_back(user);
 }
 
@@ -102,6 +110,52 @@ void	Server::__handleConnection(void)
 	__authUser(newUser);
 }
 
+void	Server::__joinChannel(User const &user, std::string const &msg)
+{
+	std::vector<std::string> splited = split(msg, " ");
+	splited[1].erase(splited[1].end() - 1, splited[1].end());
+	if (_channels.count(splited[1]))
+		_channels.at(splited[1]).addUser(user);
+	else
+	{
+		std::cout << "New Chan " << '\n';
+		_channels.insert(std::make_pair(splited[1], Channel(splited[1])));
+		_channels.at(splited[1]).addUser(user);
+	}
+	std::string joinMsg = ":" + user.getName() + "!" + user.getNickName() + "@localhost";
+
+//:bastien!bastien@localhost JOIN #test
+//:bastien!bastien@localhost JOIN #test
+
+	
+	joinMsg.append(" JOIN ");
+	joinMsg.append(splited[1]);
+	joinMsg.append("\r\n");
+	// joinMsg = ":bastien!bastien@localhost JOIN #test\r\n";
+	// _channels.at(splited[1]).broadcast(joinMsg);
+	std::cout << joinMsg;
+	// _channels.at(splited[1]).broadcast("localhost 353 Random = #test");
+	// _channels.at(splited[1]).broadcast("localhost 366 Random #test");
+}
+
+void	Server::__disconnectUser(User const &user, std::size_t const &i)
+{
+	std::cout << "User " << user << " disconected\n";
+	close(_pollingList[i].fd);
+	_pollingList.erase(_pollingList.begin() + i);
+	_users.erase(_users.begin() + (i - 1));
+	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
+		(*it).second.delUser(user);
+}
+
+void	Server::__leaveChannel(User const &user, std::string const &name)
+{
+	_channels.at(name).delUser(user);
+	user.sendMsg(std::string("PART ").append(name));
+	// user.sendMsg(":bastien!bastien@localhost PART #test :Part Message");
+}
+
+
 void	Server::__handlePackets()
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
@@ -113,11 +167,7 @@ void	Server::__handlePackets()
 			if (bytes < 0)
 				std::cerr << "recv() failed\n";
 			else if (!bytes)
-			{
-				std::cout << "Client " << i << " disconected\n";
-				close(_pollingList[i].fd);
-				_pollingList.erase(_pollingList.begin() + i);
-			}
+				__disconnectUser(_users[i - 1], i);
 			else
 			{
 				std::vector<std::string> vecCmd = __parseCmd(buffer);
@@ -126,7 +176,19 @@ void	Server::__handlePackets()
 					(*(it->second))(vecCmd); //exec cmd
 				std::string msg(buffer);
 				msg.erase(--msg.end());
-				LOG_SEND(i, msg);
+
+				if (msg.find("JOIN") != std::string::npos)
+					__joinChannel(_users[i - 1], msg);
+				if (msg.find("PART") != std::string::npos)
+					__leaveChannel(_users[i - 1], split(msg, " ")[1]);
+				if (msg.find("PRIVMSG") != std::string::npos)
+				{
+					std::size_t pos = msg.find(' ', msg.find(' ') + 1) + 1;
+					std::size_t pos2 = msg.find(' ');
+					std::vector<std::string> sp = split(msg, " ");
+					_channels.at(msg.substr(0, pos2 + 1)).broadcast(msg.begin() + pos, msg.end(), &_users[i - 1]);
+				}
+				// LOG_SEND(i, msg);
 			}
 		}
 	}
@@ -183,5 +245,12 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
+
+		for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it)
+		{
+			std::cout << "Chan: " << (*it).first << '\n';
+			std::cout << "\t" << (*it).second._users << '\n';
+		}
+		std::cout << '\n';
 	}
 }

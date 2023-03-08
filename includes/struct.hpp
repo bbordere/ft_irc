@@ -36,24 +36,24 @@
 
 class User;
 
-class Channel
-{
-	private:
-		std::string	_name;
-		std::string	_topic;
-		std::string	_mode; // A voir pour changer avec du bit masking
-		std::map<User *, std::string> _userModes;
+// class Channel
+// {
+// 	private:
+// 		std::string	_name;
+// 		std::string	_topic;
+// 		std::string	_mode; // A voir pour changer avec du bit masking
+// 		std::map<User *, std::string> _userModes;
 	
-	public:
-		void	setName(std::string const &name);
-		void	setTopic(std::string const &topic);
-		void	setMode(std::string const &mode);
+// 	public:
+// 		void	setName(std::string const &name);
+// 		void	setTopic(std::string const &topic);
+// 		void	setMode(std::string const &mode);
 
-		std::string const &getName(void) const;
-		std::string const &getTopic(void) const;
-		std::string const &getMode(void) const;
+// 		std::string const &getName(void) const;
+// 		std::string const &getTopic(void) const;
+// 		std::string const &getMode(void) const;
 
-};
+// };
 
 // class Server
 // {
