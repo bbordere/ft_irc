@@ -76,13 +76,17 @@ int main(void)
 			}
 
 			// Set client fd to non-blocking mode
-			fcntl(clientFd, F_SETFL, O_NONBLOCK);
+			if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
+			{
+				std::cerr << "Failed to accept incoming connection.\n";
+				continue;
+			}
 
 			//Get Hostname client
 			char hostname[NI_MAXHOST];
-			getnameinfo((struct sockaddr *)&clientAdress, clientSize, 
+			int i = getnameinfo((struct sockaddr *)&clientAdress, clientSize, 
 								hostname, NI_MAXHOST, NULL, 0,  NI_NUMERICSERV);
-		
+			std::cout << i << '\n';
 			struct pollfd newFD;
 			newFD.events = POLLIN;
 			newFD.fd = clientFd;
