@@ -30,6 +30,7 @@ Server::Server(uint16_t const &port, std::string const &passwd): _password(passw
 	_pollingList[0].fd = _fd;
 	_pollingList[0].events = POLLIN;
 	_isOn = true;
+	_serverCmd = __initCmd();
 }
 
 Server::~Server(void)
@@ -119,12 +120,59 @@ void	Server::__handlePackets()
 			}
 			else
 			{
+				std::vector<std::string> vecCmd = __parseCmd(buffer);
+				std::map<std::string, ptrFonction>::iterator it = _serverCmd.find(vecCmd[1]);
+				if (it != _serverCmd.end())
+					(*(it->second))(vecCmd); //exec cmd
 				std::string msg(buffer);
 				msg.erase(--msg.end());
 				LOG_SEND(i, msg);
 			}
 		}
 	}
+}
+
+std::map<std::string, ptrFonction> Server::__initCmd() {
+	std::map<std::string, ptrFonction> serverCmd;
+	
+	// serverCmd["CAP"] = &nickCmd;
+	serverCmd["NICK"] = &nickCmd;
+	serverCmd["USER"] = &userCmd;
+	serverCmd["OPER"] = &operCmd;
+	serverCmd["MODE"] = &modeCmd;
+	serverCmd["QUIT"] = &quitCmd;
+	serverCmd["SQUIT"] = &squitCmd;
+	serverCmd["JOIN"] = &joinCmd;
+	serverCmd["KILL"] = &killCmd;
+	serverCmd["KICK"] = &kickCmd;
+	serverCmd["ERROR"] = &errorCmd;
+	serverCmd["PART"] = &partCmd;
+	serverCmd["PRIVMSG"] = &privmsgCmd;
+	serverCmd["NOTICE"] = &noticeCmd;
+	serverCmd["AWAY"] = &awayCmd;
+	serverCmd["DIE"] = &dieCmd;
+	serverCmd["PING"] = &restartCmd;
+	serverCmd["PONG"] = &restartCmd;
+	serverCmd["RESTART"] = &restartCmd;
+
+	return (serverCmd);
+}
+
+std::vector<std::string> Server::__parseCmd(std::string str) {
+    std::vector<std::string> cmd;
+
+    if (str[0] != ':')
+        cmd.push_back("");        
+    int size = str.find(' '); 
+    while (size != -1) {
+        cmd.push_back(str.substr(0, size));
+        str.erase(str.begin(), str.begin() + size + 1);
+        size = str.find(' ');
+    }
+    str.erase(str.end() - 2, str.end());
+    cmd.push_back(str.substr(0, size));
+
+    return (cmd);
 }
 
 void	Server::run(void)

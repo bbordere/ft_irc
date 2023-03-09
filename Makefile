@@ -2,8 +2,7 @@ CXX = c++
 
 CXXFLAGS = -g3 -std=c++98 -Wall -Wextra -Werror -MMD -I includes
 
-# FILES = srcs/protoServerSide.cpp
-FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp
+FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp srcs/command.cpp
 
 OBJS = $(FILES:.cpp=.o)
 

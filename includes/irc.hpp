@@ -17,5 +17,6 @@
 #include <map>
 #include <set>
 #include "utils.hpp"
+#include "command.hpp"
 
 #endif

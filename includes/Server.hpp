@@ -31,15 +31,14 @@ struct userComp
 class Server
 {
 	private:
-		typedef void (Server::*fctPtr)(void); // typedef pointeur sur fonction membre
-
+		typedef void* (*ptrFonction)(std::vector<std::string>);
 		std::vector<struct pollfd>	_pollingList;
 
 		int	_fd;
 		struct sockaddr_in _address;
 
 		std::vector<User> _users;
-		std::map<std::string, fctPtr>	_commands;
+		std::map<std::string, ptrFonction> _serverCmd;
 
 		// std::map<std::string, Channel>	_channels;
 
@@ -51,6 +50,8 @@ class Server
 		void	__handlePackets(void);
 		void	__authUser(User const &user);
 		void	__sendWelcomeMsg(User const &user);
+		std::map<std::string, ptrFonction>	__initCmd();
+		std::vector<std::string>			__parseCmd(std::string str);
 
 	public:
 		Server(uint16_t const &port, std::string const &passwd);
