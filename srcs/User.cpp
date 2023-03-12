@@ -1,6 +1,6 @@
 #include "User.hpp"
 
-User::User(int const fd, struct sockaddr_in addr): _name("bastien"), _nickName("bastien"), _hostName("localhost"), _fullName("bastien"),
+User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName("random"), _hostName(""), _fullName(""),
 					_password(""), _fd(fd), _mode(0), _isAuth(false),
 					_address(addr), _addressSize(sizeof(addr))
 {
@@ -42,6 +42,11 @@ void	User::setId(uint32_t const &id)
 	_id = id;
 }
 
+void	User::setAuth(bool const state)
+{
+	_isAuth = state;
+}
+
 std::string const &User::getName(void) const
 {
 	return (_name);
@@ -77,6 +82,11 @@ uint32_t const &User::getId(void) const
 	return (_id);
 }
 
+bool	User::getAuthState(void) const
+{
+	return (_isAuth);
+}
+
 struct sockaddr *User::getAddress(void)
 {
 	// return (reinterpret_cast<struct sockaddr *>(&_address));
@@ -97,7 +107,8 @@ void	User::sendMsg(std::string const &msg) const
 	// std::string to_send = ":" + _name + "!" + _nickName + "@" + _hostName;
 	// std::cout << "SEND = " << to_send << '\n';
 	// to_send.append("\r\n"); 
-	std::string to_send = msg;
+	std::string to_send = msg + "\r\n";
+	std::cout << "Send to client: " << to_send << '\n';
 	send(_fd, to_send.c_str(), to_send.length(), 0);
 }
 
@@ -105,7 +116,7 @@ void	User::updateMode(std::string const &str)
 {
 	std::vector<std::string> splited = split(str, " ");
 	if (splited[1].size() != 2)
-		sendMsg(numberToString(501) + " :Unknown MODE flag\r\n");
+		sendMsg(numberToString(501) + " :Unknown MODE flag");
 }
 
 std::string const User::getAllInfos(void) const
@@ -117,13 +128,12 @@ std::string const User::getAllInfos(void) const
 std::ostream &operator<<(std::ostream &stream, User const &user)
 {
 	stream << '{';
-	// stream << "name: " << user.getName() << ", ";
-	// stream << "nickName: " << user.getNickName() << ", ";
-	// stream << "hostName: " << user.getHostName() << ", ";
-	// stream << "fullname: " << user.getFullName() << ", ";
-	// stream << "password: " << user.getPassword() << ", ";
+	stream << "name: " << user.getName() << ", ";
+	stream << "nickName: " << user.getNickName() << ", ";
+	stream << "hostName: " << user.getHostName() << ", ";
+	stream << "fullname: " << user.getFullName() << ", ";
+	stream << "password: " << user.getPassword() << ", ";
 	stream << "fd: " << user.getFd() << ", ";
-	stream << "id: " << user.getId() << ", ";
-	stream << "ptr: " << &user << '}';
+	stream << "id: " << user.getId() << "}";
 	return (stream);
 }

@@ -33,11 +33,15 @@ class User
 		void	setFd(int const &fd);
 		void	setId(uint32_t const &id);
 
+		void	setAuth(bool const state);
+
 		std::string const &getName(void) const;
 		std::string const &getNickName(void) const;
 		std::string const &getHostName(void) const;
 		std::string const &getFullName(void) const;
 		std::string const &getPassword(void) const;
+
+		bool	getAuthState(void) const;
 
 		std::string const getAllInfos(void) const;
 
@@ -50,6 +54,7 @@ class User
 
 		void	updateMode(std::string const &str);
 		void	sendMsg(std::string const &msg) const;
+
 
 		// std::string	&getBuffer(void); // A voir
 

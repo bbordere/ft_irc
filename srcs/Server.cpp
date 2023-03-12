@@ -68,23 +68,59 @@ bool	Server::userCompFct(std::string const &nick1, std::string const &nick2)
 	return (nick1 == nick2);
 }
 
-void	Server::__identifyUser(User &user) const
+std::string	Server::__cleanMsg(std::string msg) const
+{
+	std::size_t pos;
+	while ((pos = msg.find("\r\n")) != std::string::npos)
+	{
+		msg.erase(msg.begin() + pos, msg.begin() + pos + 2);
+		msg.insert(msg.begin() + pos, ' ');
+	}
+	return (msg);
+}
+
+void	Server::__nickCMD(std::string const &msg, User &user) const
 {
 	std::string firstNickName = user.getNickName();
-	std::vector<User>::const_iterator found = std::find_if(_users.begin(), _users.end(), nickComp(user));
-	if (found != _users.end())
+
+	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
+
+	// bool found = std::find_if(_users.begin(), _users.end(), nickComp(user)) != _users.end(); //REWORK NICKNAME CHECKING
+	// std::cout << found << '\n';
+	// if (found && _users.size() != 1)
+	// {
+	// 	std::cout << "Collision found ! " << '\n';
+	// 	user.sendMsg(":" + user.getHostName() + " 443 * " + sp[1] + " :Nickname is already in use.");
+	// }
+	// else
 	{
-		user.sendMsg(":localhost 433 * bastien :Nickname is already in use.\r\n");
-		user.setNickName(firstNickName + "_");
-		int i = 1;
-		while (std::find_if(_users.begin(), _users.end(), nickComp(user)) != _users.end())
-		{
-			std::string newNick = user.getNickName();
-			newNick = firstNickName + numberToString(i);
-			user.setNickName(newNick);
-			++i;
-		}
+		user.setNickName(sp[1]);
+		if (firstNickName.empty())
+			firstNickName = user.getNickName();
+		user.sendMsg(user.getAllInfos() + " NICK " + sp[1]);
 	}
+		
+	std::string msg2 = ":";
+	user.setName("bastien");
+	msg2.append(user.getHostName());
+	msg2.append(" ");
+	msg2.append(std::string("00") + numberToString(RPL::WELCOME));
+	msg2.append(" ");
+	msg2.append(user.getNickName());
+	msg2.append(" Welcome to OurNetwork, ");
+	msg2.append(&user.getAllInfos()[1]);
+	msg2.append("\r\n");
+	std::cout << "MSG2 = " << msg2 << '\n';
+	send(user.getFd(), msg2.c_str(), msg2.length(), 0);
+
+	// __sendWelcomeMsg(const_cast<User &>(user));
+	// std::string rpl = ":";
+	// rpl.append(user.getHostName());
+	// rpl.append(" NICK ");
+	// rpl.append(user.getNickName());
+	// std::cout << "RPL = " << rpl << '\n';
+	// rpl.append("\r\n");
+	// user.sendMsg(rpl);
 }
 
 void	Server::__authUser(User &user)
@@ -97,7 +133,7 @@ void	Server::__authUser(User &user)
 		return;
 	}
 	
-	__identifyUser(user);
+	// __nickCMD(user);
 	__sendWelcomeMsg(user);
 	if (_users.size() != 0)
 		user.setId(_users.back().getId() + 1);
@@ -144,7 +180,12 @@ void	Server::__handleConnection(void)
 	_pollingList.push_back(newPFd);
 
 	LOG_CO(newUser.getHostName(), newUser.getFd());
-	__authUser(newUser);
+	if (_users.size() != 0)
+		newUser.setId(_users.back().getId() + 1);
+	else
+		newUser.setId(1);
+	_users.push_back(newUser);
+	// __authUser(newUser);
 }
 
 void	Server::__joinChannel(User const &user, std::string const &msg)
@@ -162,7 +203,7 @@ void	Server::__joinChannel(User const &user, std::string const &msg)
 			{
 				// user.sendMsg(Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + splited[1] + std::string(" Join Message"), user));
 				// std::cout << Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + splited[1] + std::string(" Join Message"), user) << '\n';
-				user.sendMsg(":localhost 473 #t :Cannot join channel (Invite only)");
+				user.sendMsg(":localhost 473 bastien_ #test :Cannot join channel (+i)\r\n");
 				return;
 			}
 		}
@@ -202,7 +243,7 @@ std::string const Server::formatMsg(std::string const &msg, User const &sender)
 	{
 		res.append(sp[i].append(" "));
 	}
-	res.append("\n");
+	// res.append("\n");
 	return (res);
 }
 
@@ -289,6 +330,16 @@ void	Server::__changeMode(std::string const &msg, User const &user)
 
 }
 
+void	Server::__sendPong(std::string const &msg, User const &user) const
+{
+	std::vector<std::string> sp = split(msg, " ");
+	std::string rpl = ":";
+	rpl.append(user.getHostName());
+	rpl.append(" PONG\r\n");
+	user.sendMsg(rpl);
+}
+
+
 void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
@@ -310,17 +361,27 @@ void	Server::__handlePackets(void)
 				std::string msg(buffer);
 				msg.erase(msg.end() - 2, msg.end());
 
-				if (msg.find("JOIN") != std::string::npos)
-					__joinChannel(_users[i - 1], msg);
-				else if (msg.find("PART") != std::string::npos)
-					__leaveChannel(_users[i - 1], msg);
-				else if (msg.find("PRIVMSG") != std::string::npos)
-					__privMsg(msg, _users[i - 1]);
-				else if (msg.find("STOP") != std::string::npos)
+				if (msg.find("STOP") != std::string::npos)
 					_isOn = false;
-				else if (msg.find("MODE") != std::string::npos)
-					__changeMode(msg, _users[i - 1]);
-				// LOG_SEND(i, msg);
+
+				if (msg.find("NICK") != std::string::npos)
+					__nickCMD(&msg[msg.find("NICK")], _users[i - 1]);
+
+
+				// std::cout << formatMsg(msg, _users[i - 1]) << '\n';
+
+				// if (msg.find("JOIN") != std::string::npos)
+				// 	__joinChannel(_users[i - 1], msg);
+				// else if (msg.find("PART") != std::string::npos)
+				// 	__leaveChannel(_users[i - 1], msg);
+				// else if (msg.find("PING") != std::string::npos)
+				// 	__sendPong(msg, _users[i - 1]);
+				// else if (msg.find("PRIVMSG") != std::string::npos)
+				// 	__privMsg(msg, _users[i - 1]);
+
+				// else if (msg.find("MODE") != std::string::npos)
+				// 	__changeMode(msg, _users[i - 1]);
+				LOG_SEND(i, msg);
 			}
 		}
 	}

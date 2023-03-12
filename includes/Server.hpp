@@ -73,9 +73,13 @@ class Server
 		void	__updateChannels(void);
 		void	__changeMode(std::string const &msg, User const &user);
 
-		void	__identifyUser(User &user) const;
+		void	__nickCMD(std::string const &msg, User &user) const;
 
 		void	__printDebug(void) const;
+
+		void	__sendPong(std::string const &msg, User const &user) const;
+
+		std::string	__cleanMsg(std::string msg) const;
 
 
 	public:
