@@ -20,6 +20,4 @@ void*	privmsgCmd(std::vector<std::string>);
 void*	noticeCmd(std::vector<std::string>);
 void*	awayCmd(std::vector<std::string>);
 void*	dieCmd(std::vector<std::string>);
-void*	pingCmd(std::vector<std::string>);
-void*	pongCmd(std::vector<std::string>);
 void*	restartCmd(std::vector<std::string>);

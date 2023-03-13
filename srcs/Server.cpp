@@ -151,8 +151,6 @@ std::map<std::string, ptrFonction> Server::__initCmd() {
 	serverCmd["NOTICE"] = &noticeCmd;
 	serverCmd["AWAY"] = &awayCmd;
 	serverCmd["DIE"] = &dieCmd;
-	serverCmd["PING"] = &restartCmd;
-	serverCmd["PONG"] = &restartCmd;
 	serverCmd["RESTART"] = &restartCmd;
 
 	return (serverCmd);
