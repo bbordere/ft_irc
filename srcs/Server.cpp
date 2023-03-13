@@ -43,26 +43,6 @@ Server::~Server(void)
 		close(_users[i].getFd());
 }
 
-void	Server::__sendWelcomeMsg(User const &user)
-{
-
-	std::string msg = ":";
-	msg.append(user.getHostName());
-	msg.append(" ");
-	msg.append(std::string("00") + numberToString(RPL::WELCOME));
-	msg.append(" ");
-	msg.append(user.getNickName());
-	msg.append(" Welcome to OurNetwork, ");
-	msg.append(user.getNickName());
-	msg.append("!");
-	msg.append(user.getName());
-	msg.append("@");
-	msg.append(user.getHostName());
-	msg.append("\r\n");
-	std::cout << msg << '\n';
-	send(user.getFd(), msg.c_str(), msg.length(), 0);
-}
-
 bool	Server::userCompFct(std::string const &nick1, std::string const &nick2)
 {
 	return (nick1 == nick2);
@@ -79,25 +59,48 @@ std::string	Server::__cleanMsg(std::string msg) const
 	return (msg);
 }
 
+bool	Server::__checkNickName(std::string const &nick) const
+{
+	std::string const specChar = "[]\\`_^{|}";
+	if (nick.length() > 9)
+		return (false);
+	if (!std::isalpha(nick[0]) && specChar.find(nick[0]) == std::string::npos)
+		return (false);
+	for (std::size_t i = 1; i < nick.length(); ++i)
+	{
+		if (!std::isalnum(nick[i]) && (specChar.find(nick[i]) == std::string::npos) && nick[i] != '-')
+			return (false);
+	}
+	return (true);
+}
+
+
 void	Server::__nickCMD(std::string const &msg, User &user) const
 {
 	std::string firstNickName = user.getNickName();
 
 	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
 
-	// bool found = std::find_if(_users.begin(), _users.end(), nickComp(user)) != _users.end(); //REWORK NICKNAME CHECKING
-	// std::cout << found << '\n';
-	// if (found && _users.size() != 1)
-	// {
-	// 	std::cout << "Collision found ! " << '\n';
-	// 	user.sendMsg(":" + user.getHostName() + " 443 * " + sp[1] + " :Nickname is already in use.");
-	// }
-	// else
+
+	user.setNickName(sp[1]);
+	bool found = std::find_if(_users.begin(), _users.end(), nickComp(&user)) != _users.end();
+	user.setNickName(firstNickName);
+	if (found && _users.size() != 1)
 	{
-		user.setNickName(sp[1]);
-		if (firstNickName.empty())
-			firstNickName = user.getNickName();
+		std::cout << "Collision found ! " << '\n';
+		user.sendMsg(":" + user.getHostName() + " 443 * " + sp[1] + " :Nickname is already in use.");
+	}
+	else if (!__checkNickName(sp[1]))
+	{
+		std::cout << "Bad nick ! " << '\n';
+		user.sendMsg(":" + user.getHostName() + " 432 * " + sp[1] + " :Erroneous nickname.");
+	}
+	else
+	{
+		// if (firstNickName.empty())
+		// 	firstNickName = user.getNickName();
 		user.sendMsg(user.getAllInfos() + " NICK " + sp[1]);
+		user.setNickName(sp[1]);
 	}
 		
 	std::string msg2 = ":";
@@ -110,7 +113,7 @@ void	Server::__nickCMD(std::string const &msg, User &user) const
 	msg2.append(" Welcome to OurNetwork, ");
 	msg2.append(&user.getAllInfos()[1]);
 	msg2.append("\r\n");
-	std::cout << "MSG2 = " << msg2 << '\n';
+	// std::cout << "MSG2 = " << msg2 << '\n';
 	send(user.getFd(), msg2.c_str(), msg2.length(), 0);
 
 	// __sendWelcomeMsg(const_cast<User &>(user));
@@ -123,24 +126,24 @@ void	Server::__nickCMD(std::string const &msg, User &user) const
 	// user.sendMsg(rpl);
 }
 
-void	Server::__authUser(User &user)
-{
-	if (user.getPassword() != _password)
-	{
-		std::string content = numberToString(RPL::ERR_PASSWDMISMATCH) + "\r\n";
-		std::cout << "WRONG PASSWORD FOR " << user.getFd() << '\n';
-		send(user.getFd(), content.c_str(), content.length(), 0);
-		return;
-	}
+// void	Server::__authUser(User &user)
+// {
+// 	if (user.getPassword() != _password)
+// 	{
+// 		std::string content = numberToString(RPL::ERR_PASSWDMISMATCH) + "\r\n";
+// 		std::cout << "WRONG PASSWORD FOR " << user.getFd() << '\n';
+// 		send(user.getFd(), content.c_str(), content.length(), 0);
+// 		return;
+// 	}
 	
-	// __nickCMD(user);
-	__sendWelcomeMsg(user);
-	if (_users.size() != 0)
-		user.setId(_users.back().getId() + 1);
-	else
-		user.setId(1);
-	_users.push_back(user);
-}
+// 	// __nickCMD(user);
+// 	__sendWelcomeMsg(user);
+// 	if (_users.size() != 0)
+// 		user.setId(_users.back().getId() + 1);
+// 	else
+// 		user.setId(1);
+// 	_users.push_back(user);
+// }
 
 void	Server::__handleConnection(void)
 {
@@ -323,9 +326,9 @@ void	Server::__changeMode(std::string const &msg, User const &user)
 
 	uint8_t curMode = _channels.at(sp[1]).getMode();
 	if (sp[2][0] == '+')
-		_channels.at(sp[1]).updateMode(SET_N_BIT(curMode, possibilities.find(sp[2][1]) + 1));
+		_channels.at(sp[1]).updateMode(SET_N_BIT(curMode, (possibilities.find(sp[2][1]) + 1)));
 	else
-		_channels.at(sp[1]).updateMode(CLEAR_N_BIT(curMode, possibilities.find(sp[2][1]) + 1));
+		_channels.at(sp[1]).updateMode(CLEAR_N_BIT(curMode, (possibilities.find(sp[2][1]) + 1)));
 		
 
 }
@@ -337,6 +340,51 @@ void	Server::__sendPong(std::string const &msg, User const &user) const
 	rpl.append(user.getHostName());
 	rpl.append(" PONG\r\n");
 	user.sendMsg(rpl);
+}
+
+void	Server::__sendWelcomeMsg(User const &user)
+{
+
+	std::string msg2 = ":";
+	msg2.append(user.getHostName());
+	msg2.append(" ");
+	msg2.append(std::string("00") + numberToString(RPL::WELCOME));
+	msg2.append(" ");
+	msg2.append(user.getNickName());
+	msg2.append(" Welcome to OurNetwork, ");
+	msg2.append(&user.getAllInfos()[1]);
+	msg2.append("\r\n");
+	// std::cout << "MSG2 = " << msg2 << '\n';
+	send(user.getFd(), msg2.c_str(), msg2.length(), 0);
+
+
+	// std::string msg = ":";
+	// msg.append(user.getHostName());
+	// msg.append(" ");
+	// msg.append(std::string("00") + numberToString(RPL::WELCOME));
+	// msg.append(" ");
+	// msg.append(user.getNickName());
+	// msg.append(" Welcome to OurNetwork, ");
+	// msg.append(user.getNickName());
+	// msg.append("!");
+	// msg.append(user.getName());
+	// msg.append("@");
+	// msg.append(user.getHostName());
+	// msg.append("\r\n");
+	// std::cout << msg << '\n';
+	// send(user.getFd(), msg.c_str(), msg.length(), 0);
+}
+
+void	Server::__checkAuthClients(void)
+{
+	for (std::size_t i = 0; i < _users.size(); ++i)
+	{
+		if (_users[i].isReadyToAuth() && !_users[i].getAuthState())
+		{
+			_users[i].setAuth(true);
+			__sendWelcomeMsg(_users[i]);
+		}
+	}
 }
 
 
@@ -366,6 +414,7 @@ void	Server::__handlePackets(void)
 
 				if (msg.find("NICK") != std::string::npos)
 					__nickCMD(&msg[msg.find("NICK")], _users[i - 1]);
+				_users[i - 1].setName("bastien");
 
 
 				// std::cout << formatMsg(msg, _users[i - 1]) << '\n';
@@ -381,6 +430,7 @@ void	Server::__handlePackets(void)
 
 				// else if (msg.find("MODE") != std::string::npos)
 				// 	__changeMode(msg, _users[i - 1]);
+				
 				LOG_SEND(i, msg);
 			}
 		}

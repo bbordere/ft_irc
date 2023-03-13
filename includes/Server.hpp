@@ -23,11 +23,13 @@ class ServerFailureException: public std::exception
 
 struct nickComp
 {
-	User u1;
-	nickComp(User const &user): u1(user) {}
+	User const *u1;
+	nickComp(User const *user): u1(user) {}
 	bool operator()(User const &user)
 	{
-		return (user.getNickName() == u1.getNickName());
+		if (&user == u1)
+			return (false);
+		return (user.getNickName() == u1->getNickName());
 	}
 };
 
@@ -74,10 +76,18 @@ class Server
 		void	__changeMode(std::string const &msg, User const &user);
 
 		void	__nickCMD(std::string const &msg, User &user) const;
+		bool	__checkNickName(std::string const &nick) const;
+
+
+		void	__userCMD(std::string const &msg, User &user) const;
+
+
 
 		void	__printDebug(void) const;
 
 		void	__sendPong(std::string const &msg, User const &user) const;
+
+		void	__checkAuthClients(void);
 
 		std::string	__cleanMsg(std::string msg) const;
 

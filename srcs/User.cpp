@@ -1,10 +1,15 @@
 #include "User.hpp"
 
-User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName("random"), _hostName(""), _fullName(""),
+User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName(""), _fullName(""), _hostName(""),
 					_password(""), _fd(fd), _mode(0), _isAuth(false),
 					_address(addr), _addressSize(sizeof(addr))
 {
 	_address.sin_family = AF_INET;
+}
+
+bool	User::isReadyToAuth(void) const
+{
+	return (!_name.empty() && !_nickName.empty() && !_fullName.empty() && !_hostName.empty() && !_password.empty());
 }
 
 void	User::setName(std::string const &name)

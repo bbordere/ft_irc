@@ -55,6 +55,8 @@ class User
 		void	updateMode(std::string const &str);
 		void	sendMsg(std::string const &msg) const;
 
+		bool	isReadyToAuth(void) const;
+
 
 		// std::string	&getBuffer(void); // A voir
 
