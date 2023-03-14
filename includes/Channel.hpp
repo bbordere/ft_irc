@@ -48,6 +48,7 @@ class Channel
 
 		bool	isInvited(User const &user) const;
 		bool	isInChan(User const &user) const;
+		bool	isOp(User const &user) const;
 
 		uint8_t getMode(void) const;
 
@@ -57,6 +58,8 @@ class Channel
 		Channel(std::string const &name);
 		void	broadcast(std::string const &msg, User const &sender,
 						std::vector<User> const &users);
+
+		void	broadcast(std::string const &msg, std::vector<User> const &users) const;
 };
 
 std::ostream &operator<<(std::ostream &stream, Channel const &chan);

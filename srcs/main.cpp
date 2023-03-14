@@ -7,7 +7,7 @@ int main(void)
 {
 	try
 	{
-		Server server(6667, "");
+		Server server(6667, "1234");
 		server.run();
 	}
 	catch(const ServerFailureException& e)

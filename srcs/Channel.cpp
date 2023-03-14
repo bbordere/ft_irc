@@ -67,6 +67,11 @@ bool	Channel::isInChan(User const &user) const
 	return (_users.count(user.getId()));
 }
 
+bool	Channel::isOp(User const &user) const
+{
+	return (GET_N_BIT(_users.at(user.getId()), MODERATED));
+}
+
 std::string const Channel::__formatMsg(std::string const &msg, User const &sender)
 {
 	std::vector<std::string> sp = split(msg, " ");
@@ -83,6 +88,16 @@ std::string const Channel::__formatMsg(std::string const &msg, User const &sende
 	res.append("\n");
 	return (res);
 }
+
+void	Channel::broadcast(std::string const &msg, std::vector<User> const &users) const
+{
+	for (std::size_t i = 0; i < users.size(); ++i)
+	{
+		if (_users.count(users[i].getId()))
+			users[i].sendMsg(msg);
+	}
+}
+
 
 void	Channel::broadcast(std::string const &msg, User const &sender, std::vector<User> const &users)
 {

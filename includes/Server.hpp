@@ -78,6 +78,8 @@ class Server
 
 
 		void	__userCMD(std::string const &msg, User &user) const;
+		void	__passCMD(std::string const &msg, User &user) const;
+
 
 
 
