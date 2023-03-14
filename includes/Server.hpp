@@ -54,8 +54,6 @@ class Server
 		std::vector<User> _users;
 		std::map<std::string, ptrFonction> _serverCmd;
 
-		std::map<std::string, fctPtr>	_commands;
-
 		std::map<std::string, Channel>	_channels;
 
 		std::set<User, userComp>		_bannedUsers;
