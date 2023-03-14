@@ -1,8 +1,8 @@
 #include "User.hpp"
 
-User::User(void): _name("bastien"), _nickName("bastien"), _hostName("localhost"), _fullName("bastien"),
-					_password(""), _fd(-1), _mode(0), _isAuth(false),
-					_address(sockaddr_in()), _addressSize(0)
+User::User(int const fd, struct sockaddr_in addr): _name("bastien"), _nickName("bastien"), _hostName("localhost"), _fullName("bastien"),
+					_password(""), _fd(fd), _mode(0), _isAuth(false),
+					_address(addr), _addressSize(sizeof(addr))
 {
 	_address.sin_family = AF_INET;
 }
@@ -37,7 +37,7 @@ void	User::setFd(int const &fd)
 	_fd = fd;
 }
 
-void	User::setId(unsigned int const &id)
+void	User::setId(uint32_t const &id)
 {
 	_id = id;
 }
@@ -72,7 +72,7 @@ int		const &User::getFd(void) const
 	return (_fd);
 }
 
-unsigned int const &User::getId(void) const
+uint32_t const &User::getId(void) const
 {
 	return (_id);
 }
@@ -110,19 +110,20 @@ void	User::updateMode(std::string const &str)
 
 std::string const User::getAllInfos(void) const
 {
-	std::string res = ":" + _name + "!" + _nickName + "@" + _hostName + " ";
+	std::string res = ":" + _nickName + "!" + _name + "@" + _hostName + " ";
 	return (res);
 }
 
 std::ostream &operator<<(std::ostream &stream, User const &user)
 {
 	stream << '{';
-	stream << "name: " << user.getName() << ", ";
-	stream << "nickName: " << user.getNickName() << ", ";
-	stream << "hostName: " << user.getHostName() << ", ";
-	stream << "fullname: " << user.getFullName() << ", ";
-	stream << "password: " << user.getPassword() << ", ";
+	// stream << "name: " << user.getName() << ", ";
+	// stream << "nickName: " << user.getNickName() << ", ";
+	// stream << "hostName: " << user.getHostName() << ", ";
+	// stream << "fullname: " << user.getFullName() << ", ";
+	// stream << "password: " << user.getPassword() << ", ";
 	stream << "fd: " << user.getFd() << ", ";
-	stream << "id: " << user.getId() << "}";
+	stream << "id: " << user.getId() << ", ";
+	stream << "ptr: " << &user << '}';
 	return (stream);
 }

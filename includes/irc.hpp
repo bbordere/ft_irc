@@ -18,5 +18,7 @@
 #include <set>
 #include "utils.hpp"
 #include "command.hpp"
+#include "RPL.hpp"
+#include <algorithm>
 
 #endif

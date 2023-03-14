@@ -1,6 +1,5 @@
 #include "Server.hpp"
 
-
 ServerFailureException::ServerFailureException(char const *msg): _msg(msg) {}
 
 const char *ServerFailureException::what() const throw()
@@ -40,11 +39,18 @@ Server::Server(uint16_t const &port, std::string const &passwd): _password(passw
 Server::~Server(void)
 {
 	close(_fd);
+	for (std::size_t i = 0; i < _users.size(); ++i)
+		close(_users[i].getFd());
 }
 
 void	Server::__sendWelcomeMsg(User const &user)
 {
-	std::string msg = ":localhost 001 ";
+
+	std::string msg = ":";
+	msg.append(user.getHostName());
+	msg.append(" ");
+	msg.append(std::string("00") + numberToString(RPL::WELCOME));
+	msg.append(" ");
 	msg.append(user.getNickName());
 	msg.append(" Welcome to OurNetwork, ");
 	msg.append(user.getNickName());
@@ -55,50 +61,81 @@ void	Server::__sendWelcomeMsg(User const &user)
 	msg.append("\r\n");
 	std::cout << msg << '\n';
 	send(user.getFd(), msg.c_str(), msg.length(), 0);
+}
 
-	// std::string content = ":localhost 001 bastien Welcome\r\n";
+bool	Server::userCompFct(std::string const &nick1, std::string const &nick2)
+{
+	return (nick1 == nick2);
+}
+
+void	Server::__identifyUser(User &user) const
+{
+	std::string firstNickName = user.getNickName();
+	std::vector<User>::const_iterator found = std::find_if(_users.begin(), _users.end(), nickComp(user));
+	if (found != _users.end())
+	{
+		user.sendMsg(":localhost 433 * bastien :Nickname is already in use.\r\n");
+		user.setNickName(firstNickName + "_");
+		int i = 1;
+		while (std::find_if(_users.begin(), _users.end(), nickComp(user)) != _users.end())
+		{
+			std::string newNick = user.getNickName();
+			newNick = firstNickName + numberToString(i);
+			user.setNickName(newNick);
+			++i;
+		}
+	}
 }
 
 void	Server::__authUser(User &user)
 {
 	if (user.getPassword() != _password)
 	{
-		std::string content = numberToString(464) + "\r\n";
+		std::string content = numberToString(RPL::ERR_PASSWDMISMATCH) + "\r\n";
 		std::cout << "WRONG PASSWORD FOR " << user.getFd() << '\n';
 		send(user.getFd(), content.c_str(), content.length(), 0);
 		return;
 	}
+	
+	__identifyUser(user);
 	__sendWelcomeMsg(user);
 	if (_users.size() != 0)
 		user.setId(_users.back().getId() + 1);
 	else
-		user.setId(0);
+		user.setId(1);
 	_users.push_back(user);
 }
 
 void	Server::__handleConnection(void)
 {
-	User newUser;
-	newUser.setFd(accept(_fd, newUser.getAddress(), newUser.getAddressSize()));
-	if (newUser.getFd() == -1)
+	struct sockaddr_in usrAddr;
+	socklen_t		   sin_size = sizeof(usrAddr);
+
+	int userFd = accept(_fd, (struct sockaddr *)(&usrAddr), &sin_size);
+
+	if (userFd == -1)
 	{
 		std::cerr << "Failed to accept incoming connection.\n";
 		return;
 	}
-	if (fcntl(newUser.getFd(), F_SETFL, O_NONBLOCK) < 0)
+
+	if (fcntl(userFd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		std::cerr << "Failed to accept incoming connection.\n";
-		close(newUser.getFd());
+		close(userFd);
 		return;
 	}
+
 	char hostnameBuff[NI_MAXHOST];
-	if (getnameinfo(newUser.getAddress(), *newUser.getAddressSize(), hostnameBuff,
-		NI_MAXHOST, NULL, 0, NI_NUMERICSERV) < 0)
+	if (getnameinfo((struct sockaddr *)(&usrAddr), sin_size, hostnameBuff,
+			NI_MAXHOST, NULL, 0, NI_NUMERICSERV) < 0)
 	{
 		std::cerr << "Failed to get info from incoming connection.\n";
-		close(newUser.getFd());
+		close(userFd);
 		return;
 	}
+
+	User newUser(userFd, usrAddr);
 	newUser.setHostName(hostnameBuff);
 
 	struct pollfd newPFd;
@@ -113,50 +150,146 @@ void	Server::__handleConnection(void)
 void	Server::__joinChannel(User const &user, std::string const &msg)
 {
 	std::vector<std::string> splited = split(msg, " ");
-	splited[1].erase(splited[1].end() - 1, splited[1].end());
 	if (_channels.count(splited[1]))
-		_channels.at(splited[1]).addUser(user);
+	{
+		if (!GET_N_BIT(_channels.at(splited[1]).getMode(), Channel::INV_ONLY))
+			_channels.at(splited[1]).addUser(user);
+		else
+		{
+			if (_channels.at(splited[1]).isInvited(user))
+				_channels.at(splited[1]).addUser(user);
+			else
+			{
+				// user.sendMsg(Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + splited[1] + std::string(" Join Message"), user));
+				// std::cout << Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + splited[1] + std::string(" Join Message"), user) << '\n';
+				user.sendMsg(":localhost 473 #t :Cannot join channel (Invite only)");
+				return;
+			}
+		}
+	}
 	else
 	{
 		std::cout << "New Chan " << '\n';
 		_channels.insert(std::make_pair(splited[1], Channel(splited[1])));
 		_channels.at(splited[1]).addUser(user);
 	}
-	std::string joinMsg = ":" + user.getName() + "!" + user.getNickName() + "@localhost";
 
-//:bastien!bastien@localhost JOIN #test
-//:bastien!bastien@localhost JOIN #test
-
-	
-	joinMsg.append(" JOIN ");
-	joinMsg.append(splited[1]);
-	joinMsg.append("\r\n");
-	// joinMsg = ":bastien!bastien@localhost JOIN #test\r\n";
-	// _channels.at(splited[1]).broadcast(joinMsg);
-	std::cout << joinMsg;
-	// _channels.at(splited[1]).broadcast("localhost 353 Random = #test");
-	// _channels.at(splited[1]).broadcast("localhost 366 Random #test");
+	user.sendMsg(Server::formatMsg(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user));
+	_channels.at(splited[1]).broadcast(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user, _users);
 }
 
 void	Server::__disconnectUser(User const &user, std::size_t const &i)
 {
 	std::cout << "User " << user << " disconected\n";
+	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
+		(*it).second.delUser(user);
+
 	close(_pollingList[i].fd);
 	_pollingList.erase(_pollingList.begin() + i);
 	_users.erase(_users.begin() + (i - 1));
-	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
-		(*it).second.delUser(user);
 }
 
-void	Server::__leaveChannel(User const &user, std::string const &name)
+std::string const Server::formatMsg(std::string const &msg, User const &sender)
 {
-	_channels.at(name).delUser(user);
-	user.sendMsg(std::string("PART ").append(name));
-	// user.sendMsg(":bastien!bastien@localhost PART #test :Part Message");
+	std::vector<std::string> sp = split(msg, " ");
+	std::string res = sender.getAllInfos();
+	res.append(sp[0]);
+	res.append(" ");
+	res.append(sp[1]);
+	res.append(" ");
+
+	for (std::size_t i = 2; i < sp.size(); ++i)
+	{
+		res.append(sp[i].append(" "));
+	}
+	res.append("\n");
+	return (res);
 }
 
+void	Server::__leaveChannel(User const &user, std::string const &msg)
+{
+	std::vector<std::string> sp = split(msg, " ");
+	std::string name = sp[1];
+	std::size_t pos = msg.find(":") + 1;
+	std::string partMsg = " ";
+	if (pos != std::string::npos)
+		partMsg += std::string(msg.begin() + pos, msg.end());
+	std::cout << "MSG= " << msg << " ---" << partMsg << '\n';
+	try
+	{
+		_channels.at(name).delUser(user);
+		user.sendMsg(Server::formatMsg(std::string("PART ") + name + partMsg, user));
+		_channels.at(name).broadcast(std::string("PART ") + name + partMsg, user, _users);
+		if (!_channels.at(name).getNbUsers())
+			_channels.erase(name);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+}
 
-void	Server::__handlePackets()
+void	Server::__privMsg(std::string const &msg, User const &user)
+{
+	std::size_t channelId = msg.find('#');
+	std::size_t channelEnd = msg.find(' ', msg.find(' ') + 1);
+
+	std::string chanName(msg.begin() + channelId, msg.begin() + channelEnd);
+
+	if (!_channels.at(chanName).isInChan(user))
+	{
+		std::cout << Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + chanName + std::string(" :Not in chan"), user) << '\n';
+		user.sendMsg(Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + chanName + std::string(" :Not in chan"), user));
+		return ;
+	}
+
+	try
+	{
+		_channels.at(chanName).broadcast(msg, user, _users);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+	
+}
+
+void	Server::__updateChannels(void)
+{
+	std::vector<std::string> emptyChan;
+	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
+	{
+		if (!(*it).second.getNbUsers())
+			emptyChan.push_back((*it).first);
+	}
+	for (std::size_t i = 0; i < emptyChan.size(); ++i)
+		_channels.erase(emptyChan[i]);
+}
+
+void	Server::__changeMode(std::string const &msg, User const &user)
+{
+	if (msg.find('#') == std::string::npos)
+		return;
+	std::vector<std::string> sp = split(msg, " ");
+
+	// if (_channels.at(sp[1]).) //CHECK USER MODE
+	// return;
+	if (sp[2].size() != 2)
+		return ; // Error Handling
+
+	(void)user;
+	std::string possibilities = "imnptkl";
+
+	uint8_t curMode = _channels.at(sp[1]).getMode();
+	if (sp[2][0] == '+')
+		_channels.at(sp[1]).updateMode(SET_N_BIT(curMode, possibilities.find(sp[2][1]) + 1));
+	else
+		_channels.at(sp[1]).updateMode(CLEAR_N_BIT(curMode, possibilities.find(sp[2][1]) + 1));
+		
+
+}
+
+void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
 	{
@@ -175,23 +308,41 @@ void	Server::__handlePackets()
 				if (it != _serverCmd.end())
 					(*(it->second))(vecCmd); //exec cmd
 				std::string msg(buffer);
-				msg.erase(--msg.end());
+				msg.erase(msg.end() - 2, msg.end());
 
 				if (msg.find("JOIN") != std::string::npos)
 					__joinChannel(_users[i - 1], msg);
-				if (msg.find("PART") != std::string::npos)
-					__leaveChannel(_users[i - 1], split(msg, " ")[1]);
-				if (msg.find("PRIVMSG") != std::string::npos)
-				{
-					std::size_t pos = msg.find(' ', msg.find(' ') + 1) + 1;
-					std::size_t pos2 = msg.find(' ');
-					std::vector<std::string> sp = split(msg, " ");
-					_channels.at(msg.substr(0, pos2 + 1)).broadcast(msg.begin() + pos, msg.end(), &_users[i - 1]);
-				}
+				else if (msg.find("PART") != std::string::npos)
+					__leaveChannel(_users[i - 1], msg);
+				else if (msg.find("PRIVMSG") != std::string::npos)
+					__privMsg(msg, _users[i - 1]);
+				else if (msg.find("STOP") != std::string::npos)
+					_isOn = false;
+				else if (msg.find("MODE") != std::string::npos)
+					__changeMode(msg, _users[i - 1]);
 				// LOG_SEND(i, msg);
 			}
 		}
 	}
+	__updateChannels();
+}
+
+#include <bitset>
+
+void	Server::__printDebug(void) const
+{
+	// system("clear");
+	std::cout << "------CHANNEL------" << '\n';
+	std::cout << _channels.size() << " ACTIVE: " << '\n';
+	for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it)
+	{
+		std::cout << (*it).first;
+		std::cout << "\t" << (*it).second._users << " ";
+		std::cout << "mode: " << std::bitset<8>((*it).second.getMode()) << '\n';
+	}
+	std::cout << "------USERS------" << '\n';
+	std::cout << _users.size() << " CONNECTED: " << '\n';
+	std::cout << _users << '\n';
 }
 
 std::map<std::string, ptrFonction> Server::__initCmd() {
@@ -245,12 +396,6 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
-
-		for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it)
-		{
-			std::cout << "Chan: " << (*it).first << '\n';
-			std::cout << "\t" << (*it).second._users << '\n';
-		}
-		std::cout << '\n';
+		// __printDebug();
 	}
 }

@@ -17,7 +17,7 @@ class User
 		uint8_t		_mode;
 		bool		_isAuth;
 
-		unsigned int		_id;
+		uint32_t		_id;
 		// bool		_isConnected;
 		struct sockaddr_in	_address;
 		socklen_t			_addressSize;
@@ -31,7 +31,7 @@ class User
 		void	setFullName(std::string const &fullName);
 		void	setPassword(std::string const &password);
 		void	setFd(int const &fd);
-		void	setId(unsigned int const &id);
+		void	setId(uint32_t const &id);
 
 		std::string const &getName(void) const;
 		std::string const &getNickName(void) const;
@@ -43,7 +43,7 @@ class User
 
 		int			const &getFd(void) const;
 
-		unsigned int	const &getId(void) const;
+		uint32_t	const &getId(void) const;
 
 		struct sockaddr *getAddress(void);
 		socklen_t		*getAddressSize(void);
@@ -53,7 +53,8 @@ class User
 
 		// std::string	&getBuffer(void); // A voir
 
-		User();
+		// User();
+		User(int const fd, struct sockaddr_in);
 };
 
 std::ostream &operator<<(std::ostream &stream, User const &user);

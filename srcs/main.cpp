@@ -1,6 +1,8 @@
 #include "irc.hpp"
 #include "Server.hpp"
 
+#include <bitset>
+
 int main(void)
 {
 	try

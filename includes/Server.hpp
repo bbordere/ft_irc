@@ -21,11 +21,22 @@ class ServerFailureException: public std::exception
 		virtual const char* what() const throw();
 };
 
+struct nickComp
+{
+	User u1;
+	nickComp(User const &user): u1(user) {}
+	bool operator()(User const &user)
+	{
+		return (user.getNickName() == u1.getNickName());
+	}
+};
+
+
 struct userComp
 {
 	bool operator() (User const &u1, User const &u2)
 	{
-		return (u1.getFullName() < u2.getFullName());
+		return (u1.getId() < u2.getId());
 	}
 };
 
@@ -36,10 +47,12 @@ class Server
 		std::vector<struct pollfd>	_pollingList;
 
 		int	_fd;
-		struct sockaddr_in _address;
+		struct sockaddr_in	_address;
 
 		std::vector<User> _users;
 		std::map<std::string, ptrFonction> _serverCmd;
+
+		std::map<std::string, fctPtr>	_commands;
 
 		std::map<std::string, Channel>	_channels;
 
@@ -56,8 +69,18 @@ class Server
 		void	__joinChannel(User const &user, std::string const &msg);
 		void	__disconnectUser(User const &user, std::size_t const &i);
 		void	__leaveChannel(User const &user, std::string const &name);
+		void	__privMsg(std::string const &msg, User const &user);
+		void	__updateChannels(void);
+		void	__changeMode(std::string const &msg, User const &user);
+
+		void	__identifyUser(User &user) const;
+
+		void	__printDebug(void) const;
+
 
 	public:
+		static bool	userCompFct(std::string const &nick1, std::string const &nick2);
+		static std::string const formatMsg(std::string const &msg, User const &sender);
 		Server(uint16_t const &port, std::string const &passwd);
 		~Server(void);
 		void	run(void);

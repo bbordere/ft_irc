@@ -11,7 +11,7 @@
 template <class T, class U>
 std::ostream &operator<<(std::ostream &stream, std::pair<T, U> const &pair)
 {
-	stream << '(' << *pair.first << ", " << (int)pair.second << ')';
+	stream << '(' << pair.first << ", " << pair.second << ')';
 	return (stream);
 }
 
