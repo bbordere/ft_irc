@@ -17,6 +17,7 @@ void*	nickCmd(std::vector<std::string> cmdLine) {
 
 	//user.nickName = cmdLine[3];
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -28,6 +29,7 @@ void*	userCmd(std::vector<std::string> cmdLine) {
 
 	// add new user, je sais pas comment tu veux l'implémenter
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -51,20 +53,23 @@ void*	operCmd(std::vector<std::string> cmdLine) {
 	//	user mode add opp
 	//	send RPL_YOUREOPER 381;
 
+	(void)cmdLine;
 	return (0);
 }
 
 void*	modeCmd(std::vector<std::string> cmdLine) {
 	
 	//a voir avec bastien
-	
+
+		(void)cmdLine;
 	return (0);
 }
 
 void*	quitCmd(std::vector<std::string> cmdLine) {
 	
 	// voir avec bastien
-	
+
+		(void)cmdLine;
 	return (0);
 }
 
@@ -74,7 +79,8 @@ void*	squitCmd(std::vector<std::string> cmdLine) {
 	// if (cmdLine.size < 3)
 	// 	send ERR_NEEDMOREPARAMS 461;
 	// if (cmdLine[2] != )
-	// 	send ERR_NOSUCHSERVER  402;
+		
+		(void)cmdLine;// 	send ERR_NOSUCHSERVER  402;
 	return (0);
 }
 
@@ -82,6 +88,7 @@ void*	joinCmd(std::vector<std::string> cmdLine) {
 
 	//channel part, voir avec bastien
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -89,6 +96,7 @@ void*	killCmd(std::vector<std::string> cmdLine) {
 
 
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -96,6 +104,7 @@ void*	kickCmd(std::vector<std::string> cmdLine) {
 
 	//kick user from channel, voir avec bastien
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -103,6 +112,7 @@ void*	errorCmd(std::vector<std::string> cmdLine) {
 
 	// remove connection from serveur, voir avec bastien
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -110,6 +120,7 @@ void*	partCmd(std::vector<std::string> cmdLine) {
 
 	//channel part, voir avec bastien
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -117,6 +128,7 @@ void*	privmsgCmd(std::vector<std::string> cmdLine) {
 
 	//prv part
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -124,6 +136,7 @@ void*	noticeCmd(std::vector<std::string> cmdLine) {
 
 	//prv part
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -131,6 +144,7 @@ void*	awayCmd(std::vector<std::string> cmdLine) {
 
 	//prv part
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -141,6 +155,7 @@ void*	dieCmd(std::vector<std::string> cmdLine) {
 
 	// server.isOn = FALLS;
 
+	(void)cmdLine;
 	return (0);
 }
 
@@ -148,5 +163,6 @@ void*	restartCmd(std::vector<std::string> cmdLine) {
 
 	//voir avec bastien
 
+	(void)cmdLine;
 	return (0);
 }

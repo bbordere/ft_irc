@@ -41,15 +41,17 @@ void	Channel::addInvitedUser(User const &user)
 
 void	Channel::delInvitedUser(User const &user)
 {
-	std::vector<uint32_t>::const_iterator curUser = std::find(_invitedList.begin(), _invitedList.end(), user.getId());
+	std::vector<uint32_t>::iterator curUser = std::find(_invitedList.begin(), _invitedList.end(), user.getId());
 	if (curUser != _invitedList.end())
 		_invitedList.erase(curUser);
 }
 
-void	Channel::updateModeUser(User const &user, std::string const &mode)
+void	Channel::setModeUser(User const &user, USER_MODES const mode)
 {
-	(void)user;
-	(void)mode;
+	if (!isInChan(user))
+		return;
+	uint16_t cur = _users.at(user.getId());
+	_users[user.getId()] = SET_N_BIT(cur, mode);
 }
 
 void	Channel::updateMode(uint8_t const mode)
@@ -69,7 +71,7 @@ bool	Channel::isInChan(User const &user) const
 
 bool	Channel::isOp(User const &user) const
 {
-	return (GET_N_BIT(_users.at(user.getId()), MODERATED));
+	return (GET_N_BIT(_users.at(user.getId()), CHAN_CREATOR) || GET_N_BIT(_users.at(user.getId()), CHAN_OP));
 }
 
 std::string const Channel::__formatMsg(std::string const &msg, User const &sender)

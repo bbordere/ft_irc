@@ -1,6 +1,6 @@
 #include "User.hpp"
 
-User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName(""), _fullName(""), _hostName(""),
+User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName(""), _hostName(""), _fullName(""),
 					_password(""), _fd(fd), _mode(0), _isAuth(false),
 					_address(addr), _addressSize(sizeof(addr))
 {
@@ -50,6 +50,16 @@ void	User::setId(uint32_t const &id)
 void	User::setAuth(bool const state)
 {
 	_isAuth = state;
+}
+
+void	User::setMode(User::MODES const mode)
+{
+	SET_N_BIT(_mode, mode);
+}
+
+void	User::unsetMode(User::MODES const mode)
+{
+	CLEAR_N_BIT(_mode, mode);
 }
 
 std::string const &User::getName(void) const

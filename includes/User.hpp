@@ -25,6 +25,16 @@ class User
 
 	
 	public:
+
+		enum MODES
+		{
+			AWAY = 1,
+			INVISIBLE,
+			WALLOPS,
+			RESTRICT,
+			OPERATOR,
+		};
+
 		void	setName(std::string const &name);
 		void	setNickName(std::string const &nickName);
 		void	setHostName(std::string const &hostName);
@@ -34,6 +44,9 @@ class User
 		void	setId(uint32_t const &id);
 
 		void	setAuth(bool const state);
+
+		void	setMode(User::MODES const mode);
+		void	unsetMode(User::MODES const mode);
 
 		std::string const &getName(void) const;
 		std::string const &getNickName(void) const;

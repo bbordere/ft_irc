@@ -76,10 +76,12 @@ class Server
 		void	__nickCMD(std::string const &msg, User &user) const;
 		bool	__checkNickName(std::string const &nick) const;
 
+		bool	__isChanExist(std::string const &name) const;
 
 		void	__userCMD(std::string const &msg, User &user) const;
 		void	__passCMD(std::string const &msg, User &user) const;
 
+		std::string __getRPLString(RPL::CODE const &rpl, std::string const &arg1, std::string const &reason) const;
 
 
 

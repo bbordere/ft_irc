@@ -21,7 +21,7 @@ class Channel
 	
 	public:
 
-		enum
+		enum CHAN_MODES
 		{
 			INV_ONLY = 1,
 			MODERATED,
@@ -30,6 +30,13 @@ class Channel
 			TOP_LOCK,
 			KEY_LOCK,
 			USR_LIM
+		};
+
+		enum USER_MODES
+		{
+			CHAN_CREATOR = 1,
+			CHAN_OP,
+			VOICE
 		};
 
 		userMap_t _users;
@@ -42,7 +49,10 @@ class Channel
 		void	addInvitedUser(User const &user);
 		void	delInvitedUser(User const &user);
 
-		void	updateModeUser(User const &user, std::string const &mode);
+		void	setModeUser(User const &user, USER_MODES const mode);
+		void	unsetModeUser(User const &user, USER_MODES const mode);
+
+
 		void	updateMode(uint8_t const mode);
 		std::size_t getNbUsers(void) const;
 
