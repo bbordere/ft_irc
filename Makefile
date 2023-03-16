@@ -1,4 +1,4 @@
-CXX = c++
+CXX = clang++
 
 CXXFLAGS = -g3 -std=c++98 -Wall -Wextra -Werror -MMD -I includes
 # CXXFLAGS = -g3 -MMD -I includes

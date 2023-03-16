@@ -97,6 +97,11 @@ bool	Channel::isOp(User const &user) const
 	return (GET_N_BIT(_users.at(user.getId()), CHAN_CREATOR) || GET_N_BIT(_users.at(user.getId()), CHAN_OP));
 }
 
+bool	Channel::isEmpty(void) const
+{
+	return (_users.empty());
+}
+
 std::string const Channel::__formatMsg(std::string const &msg, User const &sender)
 {
 	std::vector<std::string> sp = split(msg, " ");

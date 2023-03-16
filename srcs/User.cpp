@@ -7,6 +7,13 @@ User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName(""), _ho
 	_address.sin_family = AF_INET;
 }
 
+User::User(std::string const &nick): _name(""), _nickName(nick), _hostName(""), _fullName(""),
+					_password(""), _fd(-1), _mode(0), _isAuth(false),
+					_address(), _addressSize()
+{
+	_address.sin_family = AF_INET;
+}
+
 bool	User::isReadyToAuth(void) const
 {
 	return (!_name.empty() && !_nickName.empty() && !_fullName.empty() && !_hostName.empty() && !_password.empty());

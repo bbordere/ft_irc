@@ -75,6 +75,7 @@ class User
 
 		// User();
 		User(int const fd, struct sockaddr_in);
+		User(std::string const &nick);
 };
 
 std::ostream &operator<<(std::ostream &stream, User const &user);

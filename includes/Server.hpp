@@ -21,10 +21,20 @@ class ServerFailureException: public std::exception
 		virtual const char* what() const throw();
 };
 
-struct nickComp
+struct nickCompByNick
+{
+	User const u1;
+	nickCompByNick(std::string const &nick): u1(User(nick)) {}
+	bool operator()(User const &user)
+	{
+		return (user.getNickName() == u1.getNickName());
+	}
+};
+
+struct nickCompByPtr
 {
 	User const *u1;
-	nickComp(User const *user): u1(user) {}
+	nickCompByPtr(User const *user): u1(user) {}
 	bool operator()(User const &user)
 	{
 		if (&user == u1)
@@ -88,7 +98,9 @@ class Server
 
 		void	__joinExistingChan(std::string const &name, User const &user);
 
-
+		void	__inviteCMD(std::string const &msg, User const &user);
+		void	__inviteExistingChan(std::string const &chanName, User const &target, User const &sender);
+		
 		void	__printDebug(void) const;
 
 		void	__sendPong(std::string const &msg, User const &user) const;
@@ -105,6 +117,9 @@ class Server
 		static bool	userCompFct(std::string const &nick1, std::string const &nick2);
 		static std::string const formatMsg(std::string const &msg, User const &sender);
 		Server(uint16_t const &port, std::string const &passwd);
+
+		std::vector<User>::const_iterator getUserByNick(std::string const &nick) const;
+
 		~Server(void);
 		void	run(void);
 };

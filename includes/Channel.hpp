@@ -60,6 +60,7 @@ class Channel
 		bool	isInvited(User const &user) const;
 		bool	isInChan(User const &user) const;
 		bool	isOp(User const &user) const;
+		bool	isEmpty(void) const;
 
 		uint8_t getMode(void) const;
 
