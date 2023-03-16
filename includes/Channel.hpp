@@ -52,6 +52,7 @@ class Channel
 		void	setModeUser(User const &user, USER_MODES const mode);
 		void	unsetModeUser(User const &user, USER_MODES const mode);
 
+		bool	checkCondition(std::string const &name, User const &user) const;
 
 		void	updateMode(uint8_t const mode);
 		std::size_t getNbUsers(void) const;
@@ -64,6 +65,7 @@ class Channel
 
 		std::string const &getName(void) const;
 		std::string const &getTopic(void) const;
+		std::string getModeString(void) const;
 
 		Channel(std::string const &name);
 		void	broadcast(std::string const &msg, User const &sender,

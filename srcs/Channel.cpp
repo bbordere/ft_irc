@@ -54,6 +54,29 @@ void	Channel::setModeUser(User const &user, USER_MODES const mode)
 	_users[user.getId()] = SET_N_BIT(cur, mode);
 }
 
+void	Channel::unsetModeUser(User const &user, USER_MODES const mode)
+{
+	if (!isInChan(user))
+		return;
+	uint16_t cur = _users.at(user.getId());
+	_users[user.getId()] = CLEAR_N_BIT(cur, mode);
+}
+
+bool	Channel::checkCondition(std::string const &name, User const &user) const
+{
+	if (!isInChan(user))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOTONCHANNEL, name, ":You are not in this channel !"));
+		return (false);
+	}
+	if (!isOp(user))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_CHANOPRIVSNEEDED, name, ":You don't have permision to do this !"));
+		return (false);
+	}
+	return (true);
+}
+
 void	Channel::updateMode(uint8_t const mode)
 {
 	_mode = mode;
@@ -98,6 +121,23 @@ void	Channel::broadcast(std::string const &msg, std::vector<User> const &users) 
 		if (_users.count(users[i].getId()))
 			users[i].sendMsg(msg);
 	}
+}
+
+std::string Channel::getModeString(void) const
+{
+	std::string res = "+";
+	bool	const activeModes[7] = {
+						GET_N_BIT(_mode, INV_ONLY), GET_N_BIT(_mode, MODERATED),
+						GET_N_BIT(_mode, NO_OUT), GET_N_BIT(_mode, PRIV),
+						GET_N_BIT(_mode, TOP_LOCK), GET_N_BIT(_mode, KEY_LOCK),
+						GET_N_BIT(_mode, USR_LIM)};
+	std::string const possibilities = "imnptkl";
+	for (unsigned char i = 0; i < 7; ++i)
+	{
+		if (activeModes[i])
+			res += possibilities[i];
+	}
+	return (res);
 }
 
 

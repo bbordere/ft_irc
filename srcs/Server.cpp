@@ -81,7 +81,6 @@ void	Server::__nickCMD(std::string const &msg, User &user) const
 
 	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
 
-
 	user.setNickName(sp[1]);
 	bool found = std::find_if(_users.begin(), _users.end(), nickComp(&user)) != _users.end();
 	user.setNickName(firstNickName);
@@ -97,53 +96,10 @@ void	Server::__nickCMD(std::string const &msg, User &user) const
 	}
 	else
 	{
-		// if (firstNickName.empty())
-		// 	firstNickName = user.getNickName();
 		user.sendMsg(user.getAllInfos() + " NICK " + sp[1]);
 		user.setNickName(sp[1]);
 	}
-		
-	// std::string msg2 = ":";
-	// user.setName("bastien");
-	// msg2.append(user.getHostName());
-	// msg2.append(" ");
-	// msg2.append(std::string("00") + numberToString(RPL::WELCOME));
-	// msg2.append(" ");
-	// msg2.append(user.getNickName());
-	// msg2.append(" Welcome to OurNetwork, ");
-	// msg2.append(&user.getAllInfos()[1]);
-	// msg2.append("\r\n");
-	// // std::cout << "MSG2 = " << msg2 << '\n';
-	// send(user.getFd(), msg2.c_str(), msg2.length(), 0);
-
-	// __sendWelcomeMsg(const_cast<User &>(user));
-	// std::string rpl = ":";
-	// rpl.append(user.getHostName());
-	// rpl.append(" NICK ");
-	// rpl.append(user.getNickName());
-	// std::cout << "RPL = " << rpl << '\n';
-	// rpl.append("\r\n");
-	// user.sendMsg(rpl);
 }
-
-// void	Server::__authUser(User &user)
-// {
-// 	if (user.getPassword() != _password)
-// 	{
-// 		std::string content = numberToString(RPL::ERR_PASSWDMISMATCH) + "\r\n";
-// 		std::cout << "WRONG PASSWORD FOR " << user.getFd() << '\n';
-// 		send(user.getFd(), content.c_str(), content.length(), 0);
-// 		return;
-// 	}
-	
-// 	// __nickCMD(user);
-// 	__sendWelcomeMsg(user);
-// 	if (_users.size() != 0)
-// 		user.setId(_users.back().getId() + 1);
-// 	else
-// 		user.setId(1);
-// 	_users.push_back(user);
-// }
 
 void	Server::__handleConnection(void)
 {
@@ -188,38 +144,42 @@ void	Server::__handleConnection(void)
 	else
 		newUser.setId(1);
 	_users.push_back(newUser);
-	// __authUser(newUser);
 }
+
+void	Server::__joinExistingChan(std::string const &name, User const &user)
+{
+	Channel &chan = _channels.at(name);
+	if (!GET_N_BIT(chan.getMode(), Channel::INV_ONLY))
+		chan.addUser(user);
+	else
+	{
+		if (chan.isInvited(user))
+			chan.addUser(user);
+		else
+		{
+			user.sendMsg(Server::getRPLString(RPL::ERR_INVITEONLYCHAN, user.getNickName(), name, ":Cannot join channel (+i)"));
+			return;
+		}
+	}
+	user.sendMsg(Server::formatMsg(std::string("JOIN ") + name + std::string(" Join Message"), user));
+	chan.broadcast(std::string("JOIN ") + name + std::string(" Join Message"), user, _users);
+}
+
 
 void	Server::__joinChannel(User const &user, std::string const &msg)
 {
-	std::vector<std::string> splited = split(msg, " ");
+	std::vector<std::string> splited = split(__cleanMsg(msg), " ");
 	if (_channels.count(splited[1]))
-	{
-		if (!GET_N_BIT(_channels.at(splited[1]).getMode(), Channel::INV_ONLY))
-			_channels.at(splited[1]).addUser(user);
-		else
-		{
-			if (_channels.at(splited[1]).isInvited(user))
-				_channels.at(splited[1]).addUser(user);
-			else
-			{
-				// user.sendMsg(Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + splited[1] + std::string(" Join Message"), user));
-				// std::cout << Server::formatMsg(numberToString(RPL::ERR_NOTONCHANNEL) + " " + splited[1] + std::string(" Join Message"), user) << '\n';
-				user.sendMsg(":localhost 473 bastien_ #test :Cannot join channel (+i)\r\n");
-				return;
-			}
-		}
-	}
+		__joinExistingChan(splited[1], user);
 	else
 	{
 		std::cout << "New Chan " << '\n';
-		_channels.insert(std::make_pair(splited[1], Channel(splited[1])));
-		_channels.at(splited[1]).addUser(user);
-		_channels.at(splited[1]).setModeUser(user, Channel::CHAN_CREATOR);
+		Channel &chan = (*_channels.insert(std::make_pair(splited[1], Channel(splited[1]))).first).second;
+		chan.addUser(user);
+		chan.setModeUser(user, Channel::CHAN_CREATOR);
+		user.sendMsg(Server::formatMsg(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user));
+		chan.broadcast(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user, _users);
 	}
-	user.sendMsg(Server::formatMsg(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user));
-	_channels.at(splited[1]).broadcast(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user, _users);
 }
 
 void	Server::__disconnectUser(User const &user, std::size_t const &i)
@@ -243,10 +203,7 @@ std::string const Server::formatMsg(std::string const &msg, User const &sender)
 	res.append(" ");
 
 	for (std::size_t i = 2; i < sp.size(); ++i)
-	{
 		res.append(sp[i].append(" "));
-	}
-	// res.append("\n");
 	return (res);
 }
 
@@ -315,45 +272,58 @@ bool	Server::__isChanExist(std::string const &name) const
 }
 
 
-std::string Server::__getRPLString(RPL::CODE const &rpl, std::string const &arg1, std::string const &reason) const
+std::string Server::getRPLString(RPL::CODE const &rpl, std::string const &arg1, std::string const &reason)
 {
 	std::string res = "";
 	res += numberToString(rpl);
 	res += " ";
 	res += arg1;
-	res += " :";
+	res += " ";
 	res += reason;
 	return (res);
 }
 
+std::string Server::getRPLString(RPL::CODE const &rpl, std::string const &arg1, std::string const &arg2, std::string const &reason)
+{
+	std::string res = "";
+	res += numberToString(rpl);
+	res += " ";
+	res += arg1;
+	res += " ";
+	res += arg2;
+	res += " ";
+	res += reason;
+	return (res);
+}
 
-void	Server::__changeMode(std::string const &msg, User const &user)
+void	Server::__changeChanMode(std::string const &msg, User const &user)
 {
 	if (msg.find('#') == std::string::npos)
 		return; // USER MODE CHANGE
 
-	std::cout <<  !__isChanExist(sp[1]) << '\n';
+	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
 	if (!__isChanExist(sp[1]))
 	{
-		user.sendMsg(__getRPLString(RPL::ERR_NOSUCHCHANNEL, sp[1], "No such channel !"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, sp[1], ":" + sp[1]));
 		return;	
 	}
 
-	//NEED TO CHECK IF  USER IS IN CHAN BEFORE CHECK IF HE IS OP
 	Channel &chan = _channels.at(sp[1]);
-	if (!chan.isOp(user))
+
+	std::cout << sp << '\n';
+	if (!chan.checkCondition(sp[1], user))
+		return ;
+
+	if (sp.size() == 2)
 	{
-		user.sendMsg(__getRPLString(RPL::ERR_CHANOPRIVSNEEDED, sp[1], "You don't have permision to do this !"));
+		user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), sp[1], chan.getModeString()));
 		return;	
 	}
 	
-	if (sp[2].size() != 2) // INV MOD
-		return ; // Error Handling
-
-	std::string possibilities = "imnptkl";
-	if (possibilities.find(sp[2][1]) == std::string::npos)
+	std::string const possibilities = "imnptkl";
+	if (sp[2].size() != 2 || possibilities.find(sp[2][1]) == std::string::npos)
 	{
-		user.sendMsg(__getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, sp[1], "Unknown flag"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, sp[1], ":Unknown flag"));
 		return;
 	}
 
@@ -370,41 +340,19 @@ void	Server::__sendPong(std::string const &msg, User const &user) const
 	std::vector<std::string> sp = split(msg, " ");
 	std::string rpl = ":";
 	rpl.append(user.getHostName());
-	rpl.append(" PONG\r\n");
+	rpl.append(" PONG");
 	user.sendMsg(rpl);
 }
 
 void	Server::__sendWelcomeMsg(User const &user)
 {
-
-	std::string msg2 = ":";
-	msg2.append(user.getHostName());
-	msg2.append(" ");
+	std::string msg2 = "";
 	msg2.append(std::string("00") + numberToString(RPL::WELCOME));
 	msg2.append(" ");
 	msg2.append(user.getNickName());
 	msg2.append(" Welcome to OurNetwork, ");
 	msg2.append(&user.getAllInfos()[1]);
-	msg2.append("\r\n");
-	// std::cout << "MSG2 = " << msg2 << '\n';
-	send(user.getFd(), msg2.c_str(), msg2.length(), 0);
-
-
-	// std::string msg = ":";
-	// msg.append(user.getHostName());
-	// msg.append(" ");
-	// msg.append(std::string("00") + numberToString(RPL::WELCOME));
-	// msg.append(" ");
-	// msg.append(user.getNickName());
-	// msg.append(" Welcome to OurNetwork, ");
-	// msg.append(user.getNickName());
-	// msg.append("!");
-	// msg.append(user.getName());
-	// msg.append("@");
-	// msg.append(user.getHostName());
-	// msg.append("\r\n");
-	// std::cout << msg << '\n';
-	// send(user.getFd(), msg.c_str(), msg.length(), 0);
+	user.sendMsg(msg2);
 }
 
 void	Server::__checkAuthClients(void)
@@ -421,17 +369,14 @@ void	Server::__checkAuthClients(void)
 
 void	Server::__userCMD(std::string const &msg, User &user) const
 {
-	// std::cout << "USER ====" << msg << '\n';
 	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
 	if (user.getAuthState())
 	{
-		user.sendMsg(":" + user.getHostName() + " 462 " + user.getNickName() + "  :You may not reregister.");
+		user.sendMsg(Server::getRPLString(RPL::ERR_ALREADYREGISTERED, "", ":You may not reregister."));
 		return;
 	}
 	user.setName(sp[1]);
-	// user.setHostName(sp[2]);
 	user.setFullName(&msg[msg.find(':')]);
-	std::cout << user << '\n';
 }
 
 
@@ -466,6 +411,7 @@ void	Server::__handlePackets(void)
 				if (it != _serverCmd.end())
 					(*(it->second))(vecCmd); //exec cmd
 				std::string msg(buffer);
+				LOG_SEND(i, msg);
 				msg.erase(msg.end() - 2, msg.end());
 
 				if (msg.find("STOP") != std::string::npos)
@@ -490,15 +436,13 @@ void	Server::__handlePackets(void)
 					__privMsg(msg, _users[i - 1]);
 
 				else if (msg.find("MODE") != std::string::npos)
-					__changeMode(msg, _users[i - 1]);
-				
-				// LOG_SEND(i, msg);
+					__changeChanMode(msg, _users[i - 1]);
 			}
 		}
 	}
 	__updateChannels();
 	__checkAuthClients();
-	__printDebug();
+	// __printDebug();
 }
 
 #include <bitset>

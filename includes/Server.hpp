@@ -44,6 +44,11 @@ struct userComp
 
 class Server
 {
+
+	public:
+
+		typedef std::map<std::string, Channel> map_chan_t;
+
 	private:
 		typedef void* (*ptrFonction)(std::vector<std::string>);
 		std::vector<struct pollfd>	_pollingList;
@@ -54,7 +59,7 @@ class Server
 		std::vector<User> _users;
 		std::map<std::string, ptrFonction> _serverCmd;
 
-		std::map<std::string, Channel>	_channels;
+		map_chan_t	_channels;
 
 		std::set<User, userComp>		_bannedUsers;
 		bool		_isOn;
@@ -71,7 +76,7 @@ class Server
 		void	__leaveChannel(User const &user, std::string const &name);
 		void	__privMsg(std::string const &msg, User const &user);
 		void	__updateChannels(void);
-		void	__changeMode(std::string const &msg, User const &user);
+		void	__changeChanMode(std::string const &msg, User const &user);
 
 		void	__nickCMD(std::string const &msg, User &user) const;
 		bool	__checkNickName(std::string const &nick) const;
@@ -81,8 +86,7 @@ class Server
 		void	__userCMD(std::string const &msg, User &user) const;
 		void	__passCMD(std::string const &msg, User &user) const;
 
-		std::string __getRPLString(RPL::CODE const &rpl, std::string const &arg1, std::string const &reason) const;
-
+		void	__joinExistingChan(std::string const &name, User const &user);
 
 
 		void	__printDebug(void) const;
@@ -95,6 +99,9 @@ class Server
 
 
 	public:
+
+		static std::string getRPLString(RPL::CODE const &rpl, std::string const &arg1, std::string const &reason);
+		static std::string getRPLString(RPL::CODE const &rpl, std::string const &arg1, std::string const &arg2, std::string const &reason);
 		static bool	userCompFct(std::string const &nick1, std::string const &nick2);
 		static std::string const formatMsg(std::string const &msg, User const &sender);
 		Server(uint16_t const &port, std::string const &passwd);
