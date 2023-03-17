@@ -36,14 +36,14 @@ void	Channel::delUser(User const &user)
 
 void	Channel::addInvitedUser(User const &user)
 {
-	_invitedList.push_back(user.getId());
+	_invitedSet.insert(user.getId());
 }
 
 void	Channel::delInvitedUser(User const &user)
 {
-	std::vector<uint32_t>::iterator curUser = std::find(_invitedList.begin(), _invitedList.end(), user.getId());
-	if (curUser != _invitedList.end())
-		_invitedList.erase(curUser);
+	std::set<uint32_t>::iterator it = _invitedSet.find(user.getId());
+	if (it != _invitedSet.end())
+		_invitedSet.erase(it);
 }
 
 void	Channel::setModeUser(User const &user, USER_MODES const mode)
@@ -84,7 +84,7 @@ void	Channel::updateMode(uint8_t const mode)
 
 bool	Channel::isInvited(User const &user) const
 {
-	return (std::find(_invitedList.begin(), _invitedList.end(), user.getId()) != _invitedList.end());
+	return (_invitedSet.count(user.getId()));
 }
 
 bool	Channel::isInChan(User const &user) const
@@ -95,6 +95,11 @@ bool	Channel::isInChan(User const &user) const
 bool	Channel::isOp(User const &user) const
 {
 	return (GET_N_BIT(_users.at(user.getId()), CHAN_CREATOR) || GET_N_BIT(_users.at(user.getId()), CHAN_OP));
+}
+
+bool	Channel::isInMode(uint8_t const &mode) const
+{
+	return	 ((_mode & mode) != 0);
 }
 
 bool	Channel::isEmpty(void) const
@@ -142,9 +147,10 @@ std::string Channel::getModeString(void) const
 		if (activeModes[i])
 			res += possibilities[i];
 	}
+	if (res == "+")
+		res = "";
 	return (res);
 }
-
 
 void	Channel::broadcast(std::string const &msg, User const &sender, std::vector<User> const &users)
 {

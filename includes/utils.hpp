@@ -7,6 +7,7 @@
 #define CLEAR_N_BIT(x, n) (x &= ~(1 << n))
 #define TOG_N_BIT(x, n) (x ^= 1 << n)
 #define GET_N_BIT(x, n) ((x >> n) & 1)
+#define BIT(x) (1 << x)
 
 template <class T, class U>
 std::ostream &operator<<(std::ostream &stream, std::pair<T, U> const &pair)

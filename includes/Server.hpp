@@ -99,7 +99,7 @@ class Server
 		void	__joinExistingChan(std::string const &name, User const &user);
 
 		void	__inviteCMD(std::string const &msg, User const &user);
-		void	__inviteExistingChan(std::string const &chanName, User const &target, User const &sender);
+		void	__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user);
 		
 		void	__printDebug(void) const;
 
@@ -108,6 +108,8 @@ class Server
 		void	__checkAuthClients(void);
 
 		std::string	__cleanMsg(std::string msg) const;
+		std::string __getChanUsersList(Channel const &chan) const;
+
 
 
 	public:

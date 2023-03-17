@@ -11,7 +11,7 @@ class Channel
 	private:
 		typedef std::map<uint32_t, uint16_t> userMap_t;
 
-		std::vector<uint32_t> _invitedList;
+		std::set<uint32_t> _invitedSet;
 		std::string	_name;
 		std::string	_topic;
 
@@ -61,6 +61,7 @@ class Channel
 		bool	isInChan(User const &user) const;
 		bool	isOp(User const &user) const;
 		bool	isEmpty(void) const;
+		bool	isInMode(uint8_t const &mode) const;
 
 		uint8_t getMode(void) const;
 

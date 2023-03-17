@@ -73,6 +73,20 @@ bool	Server::__checkNickName(std::string const &nick) const
 	return (true);
 }
 
+std::string Server::__getChanUsersList(Channel const &chan) const
+{
+	std::string res;
+
+	for (std::size_t i = 0; i < _users.size() - 1; ++i)
+	{
+		if (chan.isInChan(_users[i]))
+			res += _users[i].getNickName() + " ";
+	}
+	if (chan.isInChan(_users[_users.size() - 1]))
+			res += _users[_users.size() - 1].getNickName();
+	return (res);
+}
+
 
 void	Server::__nickCMD(std::string const &msg, User &user) const
 {
@@ -161,9 +175,11 @@ void	Server::__joinExistingChan(std::string const &name, User const &user)
 		}
 	}
 	user.sendMsg(Server::formatMsg(std::string("JOIN ") + name + std::string(" Join Message"), user));
+	user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, user.getNickName(), "= " + chan.getName(), ":" + __getChanUsersList(chan)));
+	user.sendMsg(Server::getRPLString(RPL::RPL_ENDOFNAMES, user.getNickName(), chan.getName(), ":End of /NAMES LIST"));
+
 	chan.broadcast(std::string("JOIN ") + name + std::string(" Join Message"), user, _users);
 }
-
 
 void	Server::__joinChannel(User const &user, std::string const &msg)
 {
@@ -177,6 +193,13 @@ void	Server::__joinChannel(User const &user, std::string const &msg)
 		chan.addUser(user);
 		chan.setModeUser(user, Channel::CHAN_CREATOR);
 		user.sendMsg(Server::formatMsg(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user));
+
+
+		user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, user.getNickName(), "= " + chan.getName(), ":" + __getChanUsersList(chan)));
+		user.sendMsg(Server::getRPLString(RPL::RPL_ENDOFNAMES, user.getNickName(), chan.getName(), ":End of /NAMES LIST"));
+
+
+
 		chan.broadcast(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user, _users);
 	}
 }
@@ -227,9 +250,10 @@ void	Server::__leaveChannel(User const &user, std::string const &msg)
 	if (!chan.isInChan(user))
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOTONCHANNEL, user.getNickName(), name, ":You're not on that channel"));
-		return;		
+		return;
 	}
 	chan.delUser(user);
+	chan.delInvitedUser(user);
 	user.sendMsg(Server::formatMsg(std::string("PART ") + name + partMsg, user));
 	chan.broadcast(std::string("PART ") + name + partMsg, user, _users);
 	if (chan.isEmpty())
@@ -322,15 +346,14 @@ void	Server::__changeChanMode(std::string const &msg, User const &user)
 
 	Channel &chan = _channels.at(sp[1]);
 
-	std::cout << sp << '\n';
-	if (!chan.checkCondition(sp[1], user))
-		return ;
-
 	if (sp.size() == 2)
 	{
 		user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), sp[1], chan.getModeString()));
 		return;	
 	}
+
+	if (!chan.checkCondition(sp[1], user))
+		return ;
 	
 	std::string const possibilities = "imnptkl";
 	if (sp[2].size() != 2 || possibilities.find(sp[2][1]) == std::string::npos)
@@ -403,11 +426,36 @@ void	Server::__passCMD(std::string const &msg, User &user) const
 	user.setPassword(sp[1]);
 }
 
-void	Server::__inviteExistingChan(std::string const &chanName, User const &target, User const &sender)
+void	Server::__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user)
 {
-	(void)chanName;
-	(void)target;
-	(void)sender;
+	std::vector<User>::const_iterator it = getUserByNick(target);
+	if (it == _users.end())
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, target, target,":No such nick"));
+		return;
+	}
+
+	Channel &chan = _channels.at(chanName);
+	if (!chan.isInChan(user))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOTONCHANNEL, user.getNickName(), chanName, ":You're not on that channel"));
+		return;	
+	}
+
+	if (chan.isInvited(*it) || chan.isInChan(*it))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_USERONCHANNEL, target, chanName, ":User already in channel !"));
+		return;	
+	}
+
+	if (chan.isInMode(BIT(Channel::INV_ONLY) | BIT(Channel::MODERATED) | BIT(Channel::PRIV)) && !chan.isOp(user))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_CHANOPRIVSNEEDED, user.getNickName(), ":You don't have permision to do this !"));
+		return;	
+	}
+	chan.addInvitedUser(*it);
+	user.sendMsg(Server::getRPLString(RPL::RPL_INVITING, user.getNickName(), target, chanName));
+	(*it).sendMsg(Server::formatMsg("INVITE " + user.getNickName() + " " + chanName, user));
 }
 
 void	Server::__inviteCMD(std::string const &msg, User const &user)
@@ -422,9 +470,13 @@ void	Server::__inviteCMD(std::string const &msg, User const &user)
 		if (it == _users.end())
 			user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, targetUser, targetUser,":No such nick"));
 		else
+		{
 			user.sendMsg(Server::getRPLString(RPL::RPL_INVITING, targetUser, chanName, targetUser));
-		return;
+			(*it).sendMsg(Server::formatMsg("INVITE " + user.getNickName() + " " + chanName, user));
+		}
 	}
+	else
+		__inviteExistingChan(chanName, targetUser, user);
 }
 
 void	Server::__handlePackets(void)
