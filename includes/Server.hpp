@@ -86,7 +86,7 @@ class Server
 		void	__leaveChannel(User const &user, std::string const &name);
 		void	__privMsg(std::string const &msg, User const &user);
 		void	__updateChannels(void);
-		void	__changeChanMode(std::string const &msg, User const &user);
+		void	__changeChanMode(std::string const &msg, User &user);
 
 		void	__nickCMD(std::string const &msg, User &user) const;
 		bool	__checkNickName(std::string const &nick) const;
@@ -109,6 +109,8 @@ class Server
 
 		std::string	__cleanMsg(std::string msg) const;
 		std::string __getChanUsersList(Channel const &chan) const;
+
+		void	__usrModeHandling(std::string const &msg, User &user);
 
 
 

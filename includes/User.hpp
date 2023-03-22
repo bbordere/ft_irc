@@ -70,6 +70,10 @@ class User
 
 		bool	isReadyToAuth(void) const;
 
+		bool	checkMode(uint8_t const &mode) const;
+
+		uint8_t getMode(void) const;
+
 
 		// std::string	&getBuffer(void); // A voir
 

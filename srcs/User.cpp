@@ -147,6 +147,17 @@ std::string const User::getAllInfos(void) const
 	return (res);
 }
 
+uint8_t User::getMode(void) const
+{
+	return (_mode);
+}
+
+
+bool	User::checkMode(uint8_t const &mode) const
+{
+	return  ((_mode & mode) != 0);
+}
+
 std::ostream &operator<<(std::ostream &stream, User const &user)
 {
 	stream << '{';

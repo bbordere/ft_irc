@@ -331,11 +331,22 @@ std::vector<User>::const_iterator Server::getUserByNick(std::string const &nick)
 	return (std::find_if(_users.begin(), _users.end(), nickCompByNick(nick)));
 }
 
+void	Server::__usrModeHandling(std::string const &msg, User &user)
+{
+	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
+	std::cout << sp << '\n';
+	if (sp[1] == user.getNickName() && !user.getMode() && sp[2] == "+i")
+		user.setMode(User::INVISIBLE);
+	
+}
 
-void	Server::__changeChanMode(std::string const &msg, User const &user)
+void	Server::__changeChanMode(std::string const &msg, User &user)
 {
 	if (msg.find('#') == std::string::npos)
-		return; // USER MODE CHANGE
+	{
+		__usrModeHandling(msg, user);
+		return;
+	}
 
 	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
 	if (!__isChanExist(sp[1]))
