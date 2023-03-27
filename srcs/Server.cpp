@@ -88,29 +88,29 @@ std::string Server::__getChanUsersList(Channel const &chan) const
 }
 
 
-void	Server::__nickCMD(std::string const &msg, User &user) const
+void	Server::__nickCMD(vec_str_t const &msg, User &user) const
 {
 	std::string firstNickName = user.getNickName();
 
-	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
+	vec_str_t::const_iterator nickIt = ++(std::find(msg.begin(), msg.end(), "NICK"));
 
-	user.setNickName(sp[1]);
+	user.setNickName(*nickIt);
 	bool found = std::find_if(_users.begin(), _users.end(), nickCompByPtr(&user)) != _users.end();
 	user.setNickName(firstNickName);
-	if (found || sp[1] == user.getNickName())
+	if (found || *nickIt == user.getNickName())
 	{
 		std::cout << "Collision found ! " << '\n';
-		user.sendMsg(Server::getRPLString(RPL::ERR_NICKNAMEINUSE, "*", sp[1], ":Nickname is already in use."));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NICKNAMEINUSE, "*", *nickIt, ":Nickname is already in use."));
 	}
-	else if (!__checkNickName(sp[1]))
+	else if (!__checkNickName(*nickIt))
 	{
 		std::cout << "Bad nick ! " << '\n';
-		user.sendMsg(Server::getRPLString(RPL::ERR_ERRONEUSNICKNAME, "*", sp[1], ":Erroneous nickname."));
+		user.sendMsg(Server::getRPLString(RPL::ERR_ERRONEUSNICKNAME, "*", *nickIt, ":Erroneous nickname."));
 	}
 	else
 	{
-		user.sendMsg(user.getAllInfos() + " NICK " + sp[1]);
-		user.setNickName(sp[1]);
+		user.sendMsg(user.getAllInfos() + " NICK " + *nickIt);
+		user.setNickName(*nickIt);
 	}
 }
 
@@ -181,18 +181,18 @@ void	Server::__joinExistingChan(std::string const &name, User const &user)
 	chan.broadcast(std::string("JOIN ") + name + std::string(" Join Message"), user, _users);
 }
 
-void	Server::__joinChannel(User const &user, std::string const &msg)
+void	Server::__joinChannel(vec_str_t const &msg, User const &user)
 {
-	std::vector<std::string> splited = split(__cleanMsg(msg), " ");
-	if (_channels.count(splited[1]))
-		__joinExistingChan(splited[1], user);
+	std::cout << msg << '\n';
+	if (_channels.count(msg[1]))
+		__joinExistingChan(msg[1], user);
 	else
 	{
 		std::cout << "New Chan " << '\n';
-		Channel &chan = (*_channels.insert(std::make_pair(splited[1], Channel(splited[1]))).first).second;
+		Channel &chan = (*_channels.insert(std::make_pair(msg[1], Channel(msg[1]))).first).second;
 		chan.addUser(user);
 		chan.setModeUser(user, Channel::CHAN_CREATOR);
-		user.sendMsg(Server::formatMsg(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user));
+		user.sendMsg(Server::formatMsg(std::string("JOIN ") + msg[1] + std::string(" Join Message"), user));
 
 
 		user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, user.getNickName(), "= " + chan.getName(), ":" + __getChanUsersList(chan)));
@@ -200,7 +200,7 @@ void	Server::__joinChannel(User const &user, std::string const &msg)
 
 
 
-		chan.broadcast(std::string("JOIN ") + splited[1] + std::string(" Join Message"), user, _users);
+		chan.broadcast(std::string("JOIN ") + msg[1] + std::string(" Join Message"), user, _users);
 	}
 }
 
@@ -229,21 +229,28 @@ std::string const Server::formatMsg(std::string const &msg, User const &sender)
 	return (res);
 }
 
-void	Server::__leaveChannel(User const &user, std::string const &msg)
+bool	Server::__isMultiArg(std::string const &str)
 {
-	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
-	std::string name = sp[1];
-	std::size_t pos = msg.find(":");
+	return (str.find(":") != std::string::npos);
+}
+
+bool	Server::__isChanRelated(std::string const &str)
+{
+	return (str.find("#") != std::string::npos);
+}
+
+void	Server::__leaveChannel(vec_str_t const &msg, User const &user)
+{
+	std::string name = msg[1];
+
+	vec_str_t::const_iterator partMsgIt = std::find_if(msg.begin(), msg.end(), __isMultiArg);
+
 	std::string partMsg;
-	if (pos != std::string::npos)
-	{
-		std::cout << "finded ! " << '\n';
-		partMsg = " " + std::string(msg.begin() + pos + 1, msg.end());
-	}
-	std::cout << "MSG= " << msg << " ---" << partMsg << "|\n";
+	if (partMsgIt != msg.end())
+		partMsg = " " + std::string(&(msg.back()[1]));
 	if (!__isChanExist(name))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, name, ":" + name));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, name, "No such channel"));
 		return;	
 	}
 	Channel &chan = _channels.at(name);
@@ -331,54 +338,50 @@ std::vector<User>::const_iterator Server::getUserByNick(std::string const &nick)
 	return (std::find_if(_users.begin(), _users.end(), nickCompByNick(nick)));
 }
 
-void	Server::__usrModeHandling(std::string const &msg, User &user)
+void	Server::__usrModeHandling(vec_str_t const &msg, User &user)
 {
-	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
-	std::cout << sp << '\n';
-	if (sp[1] == user.getNickName() && !user.getMode() && sp[2] == "+i")
+	if (msg[1] == user.getNickName() && !user.getMode() && msg[2] == "+i")
 		user.setMode(User::INVISIBLE);
-	
 }
 
-void	Server::__changeChanMode(std::string const &msg, User &user)
+void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 {
-	if (msg.find('#') == std::string::npos)
+	if (std::find_if(msg.begin(), msg.end(), __isChanRelated) == msg.end())
 	{
 		__usrModeHandling(msg, user);
 		return;
 	}
 
-	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
-	if (!__isChanExist(sp[1]))
+	if (!__isChanExist(msg[1]))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, sp[1], ":" + sp[1]));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, msg[1], ":No such channel"));
 		return;	
 	}
 
-	Channel &chan = _channels.at(sp[1]);
+	Channel &chan = _channels.at(msg[1]);
 
-	if (sp.size() == 2)
+	if (msg.size() == 2)
 	{
-		user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), sp[1], chan.getModeString()));
+		user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), msg[1], chan.getModeString()));
 		return;	
 	}
 
-	if (!chan.checkCondition(sp[1], user))
+	if (!chan.checkCondition(msg[1], user))
 		return ;
 	
 	std::string const possibilities = "imnptkl";
-	if (sp[2].size() != 2 || possibilities.find(sp[2][1]) == std::string::npos)
+	if (msg[2].size() != 2 || possibilities.find(msg[2][1]) == std::string::npos)
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, sp[1], ":Unknown flag"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, msg[1], ":Unknown flag"));
 		return;
 	}
 
 	uint8_t curMode = chan.getMode();
-	if (sp[2][0] == '+')
-		chan.updateMode(SET_N_BIT(curMode, (possibilities.find(sp[2][1]) + 1)));
+	if (msg[2][0] == '+')
+		chan.updateMode(SET_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
 	else
-		chan.updateMode(CLEAR_N_BIT(curMode, (possibilities.find(sp[2][1]) + 1)));
-	chan.broadcast(user.getAllInfos() + " MODE " + sp[1] + " " + sp[2], _users);
+		chan.updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
+	chan.broadcast(user.getAllInfos() + " MODE " + msg[1] + " " + msg[2], _users);
 }
 
 void	Server::__sendPong(std::string const &msg, User const &user) const
@@ -413,28 +416,28 @@ void	Server::__checkAuthClients(void)
 	}
 }
 
-void	Server::__userCMD(std::string const &msg, User &user) const
+void	Server::__userCMD(vec_str_t const &msg, User &user) const
 {
-	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
+	vec_str_t::const_iterator userIt = std::find(msg.begin(), msg.end(), "USER");
 	if (user.getAuthState())
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_ALREADYREGISTERED, "", ":You may not reregister."));
 		return;
 	}
-	user.setName(sp[1]);
-	user.setFullName(&msg[msg.find(':')]);
+	user.setName(*(++userIt));
+	user.setFullName(&msg.back()[1]);
 }
 
 
-void	Server::__passCMD(std::string const &msg, User &user) const
+void	Server::__passCMD(vec_str_t const &msg, User &user) const
 {
-	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
+	vec_str_t::const_iterator passIt = ++(std::find(msg.begin(), msg.end(), "PASS"));
 	if (user.getAuthState())
 	{
 		user.sendMsg(":" + user.getHostName() + " 462 " + user.getNickName() + "  :You may not reregister.");
 		return;
 	}
-	user.setPassword(sp[1]);
+	user.setPassword(*passIt);
 }
 
 void	Server::__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user)
@@ -469,11 +472,10 @@ void	Server::__inviteExistingChan(std::string const &chanName, std::string const
 	(*it).sendMsg(Server::formatMsg("INVITE " + user.getNickName() + " " + chanName, user));
 }
 
-void	Server::__inviteCMD(std::string const &msg, User const &user)
+void	Server::__inviteCMD(vec_str_t const &msg, User const &user)
 {
-	std::vector<std::string> sp = split(__cleanMsg(msg), " ");
-	std::string const targetUser = sp[1];
-	std::string const chanName = sp[2];
+	std::string const targetUser = msg[1];
+	std::string const chanName = msg[2];
 
 	if (!__isChanExist(chanName))
 	{
@@ -490,6 +492,28 @@ void	Server::__inviteCMD(std::string const &msg, User const &user)
 		__inviteExistingChan(chanName, targetUser, user);
 }
 
+Server::vec_str_t Server::__parseCmd2(std::string str) const
+{
+	std::vector<std::string> res;
+	str = __cleanMsg(str);
+	std::size_t pos;
+	while ((pos = str.find(" ")) != std::string::npos)
+	{
+		res.push_back(str.substr(0, pos));
+		str.erase(0, pos + 1);
+		if (res.back().find(":") != std::string::npos)
+			break;
+	}
+	while ((pos = str.find(" ")) != std::string::npos)
+	{
+		res.back().append(" " + str.substr(0, pos));
+		str.erase(0, pos + 1);
+	}
+	if (!str.empty())
+		res.push_back(str);
+	return (res);
+}
+
 void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
@@ -504,10 +528,16 @@ void	Server::__handlePackets(void)
 				__disconnectUser(_users[i - 1], i);
 			else
 			{
-				std::vector<std::string> vecCmd = __parseCmd(buffer);
-				std::map<std::string, ptrFonction>::iterator it = _serverCmd.find(vecCmd[1]);
-				if (it != _serverCmd.end())
+				std::vector<std::string> vecCmd = __parseCmd2(buffer);
+
+				std::cout << vecCmd << '\n';
+				std::map<std::string, ptrFonction>::iterator it = _serverCmd.end();
+				if (vecCmd.size() >= 2)
+					it = _serverCmd.find(vecCmd[1]);
+
+				if (it != _serverCmd.end()) // A changer notamment pour la partie auth
 					(*(it->second))(vecCmd); //exec cmd
+
 				std::string msg(buffer);
 				LOG_SEND(i, msg);
 				msg.erase(msg.end() - 2, msg.end());
@@ -516,27 +546,27 @@ void	Server::__handlePackets(void)
 					_isOn = false;
 
 				if (msg.find("PASS") != std::string::npos)
-					__passCMD(&msg[msg.find("PASS")], _users[i - 1]);
-
-				if (msg.find("NICK") != std::string::npos)
-					__nickCMD(&msg[msg.find("NICK")], _users[i - 1]);
-
+					__passCMD(vecCmd, _users[i - 1]);
 				if (msg.find("USER") != std::string::npos)
-					__userCMD(&msg[msg.find("USER")], _users[i - 1]);
+					__userCMD(vecCmd, _users[i - 1]);
+				if (msg.find("NICK") != std::string::npos)
+					__nickCMD(vecCmd, _users[i - 1]);
 				
 				if (msg.find("JOIN") != std::string::npos)
-					__joinChannel(_users[i - 1], msg);
+					__joinChannel(vecCmd, _users[i - 1]);
 				else if (msg.find("PART") != std::string::npos)
-					__leaveChannel(_users[i - 1], msg);
+					__leaveChannel(vecCmd, _users[i - 1]);
+
+
 				else if (msg.find("PING") != std::string::npos)
 					__sendPong(msg, _users[i - 1]);
 				else if (msg.find("PRIVMSG") != std::string::npos)
 					__privMsg(msg, _users[i - 1]);
 
 				else if (msg.find("MODE") != std::string::npos)
-					__changeChanMode(msg, _users[i - 1]);
+					__changeChanMode(vecCmd, _users[i - 1]);
 				else if (msg.find("INVITE") != std::string::npos)
-					__inviteCMD(msg, _users[i - 1]);
+					__inviteCMD(vecCmd, _users[i - 1]);
 			}
 		}
 	}
@@ -600,8 +630,7 @@ std::vector<std::string> Server::__parseCmd(std::string str) {
     }
     str.erase(str.end() - 2, str.end());
     cmd.push_back(str.substr(0, size));
-
-    return (cmd);
+	return (cmd);
 }
 
 void	Server::run(void)

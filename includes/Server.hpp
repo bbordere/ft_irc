@@ -58,6 +58,7 @@ class Server
 	public:
 
 		typedef std::map<std::string, Channel> map_chan_t;
+		typedef std::vector<std::string> vec_str_t;
 
 	private:
 		typedef void* (*ptrFonction)(std::vector<std::string>);
@@ -81,24 +82,25 @@ class Server
 		void	__sendWelcomeMsg(User const &user);
 		std::map<std::string, ptrFonction>	__initCmd();
 		std::vector<std::string>			__parseCmd(std::string str);
-		void	__joinChannel(User const &user, std::string const &msg);
+
+		void	__joinChannel(vec_str_t const &msg, User const &user);
 		void	__disconnectUser(User const &user, std::size_t const &i);
-		void	__leaveChannel(User const &user, std::string const &name);
+		void	__leaveChannel(vec_str_t const &name, User const &user);
 		void	__privMsg(std::string const &msg, User const &user);
 		void	__updateChannels(void);
-		void	__changeChanMode(std::string const &msg, User &user);
+		void	__changeChanMode(vec_str_t const &msg, User &user);
 
-		void	__nickCMD(std::string const &msg, User &user) const;
+		void	__nickCMD(vec_str_t const &msg, User &user) const;
 		bool	__checkNickName(std::string const &nick) const;
 
 		bool	__isChanExist(std::string const &name) const;
 
-		void	__userCMD(std::string const &msg, User &user) const;
-		void	__passCMD(std::string const &msg, User &user) const;
+		void	__userCMD(vec_str_t const &msg, User &user) const;
+		void	__passCMD(vec_str_t const &msg, User &user) const;
 
 		void	__joinExistingChan(std::string const &name, User const &user);
 
-		void	__inviteCMD(std::string const &msg, User const &user);
+		void	__inviteCMD(vec_str_t const &msg, User const &user);
 		void	__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user);
 		
 		void	__printDebug(void) const;
@@ -110,8 +112,14 @@ class Server
 		std::string	__cleanMsg(std::string msg) const;
 		std::string __getChanUsersList(Channel const &chan) const;
 
-		void	__usrModeHandling(std::string const &msg, User &user);
+		void	__usrModeHandling(vec_str_t const &msg, User &user);
 
+
+		vec_str_t __parseCmd2(std::string str) const;
+
+		static bool	__isMultiArg(std::string const &str);
+		static bool	__isChanRelated(std::string const &str);
+		
 
 
 	public:
