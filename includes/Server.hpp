@@ -86,7 +86,10 @@ class Server
 		void	__joinChannel(vec_str_t const &msg, User const &user);
 		void	__disconnectUser(User const &user, std::size_t const &i);
 		void	__leaveChannel(vec_str_t const &name, User const &user);
-		void	__privMsg(std::string const &msg, User const &user);
+
+		void	__privMsg(vec_str_t const &msg, User const &user);
+		void	__userPrivMsg(vec_str_t const &msg, User const &user);
+
 		void	__updateChannels(void);
 		void	__changeChanMode(vec_str_t const &msg, User &user);
 
@@ -119,6 +122,8 @@ class Server
 
 		static bool	__isMultiArg(std::string const &str);
 		static bool	__isChanRelated(std::string const &str);
+
+		void	__dccParsing(vec_str_t const &msg, User const &user);
 		
 
 

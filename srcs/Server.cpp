@@ -144,7 +144,7 @@ void	Server::__handleConnection(void)
 	}
 
 	User newUser(userFd, usrAddr);
-	newUser.setHostName(hostnameBuff);
+	newUser.setHostName("e1r3p20.clusters.42paris.fr");
 
 	struct pollfd newPFd;
 	newPFd.events = POLLIN;
@@ -267,12 +267,39 @@ void	Server::__leaveChannel(vec_str_t const &msg, User const &user)
 		_channels.erase(name);
 }
 
-void	Server::__privMsg(std::string const &msg, User const &user)
+void	Server::__userPrivMsg(vec_str_t const &msg, User const &user)
 {
-	std::size_t channelId = msg.find('#');
-	std::size_t channelEnd = msg.find(' ', msg.find(' ') + 1);
+	std::cout << "USERPV " << msg << '\n';
+	if (msg[2].find("DCC") != std::string::npos)
+	{
+		__dccParsing(msg, user);
+		return;
+	}
 
-	std::string chanName(msg.begin() + channelId, msg.begin() + channelEnd);
+	std::vector<User>::const_iterator target = getUserByNick(msg[1]);
+	if (target == _users.end())
+	{
+		std::cout << "Not found " << msg[1] << '\n';
+		return;
+	}
+	// (*target).sendMsg("PRIVMSG " + formatMsg(msg[2], user));
+	(*target).sendMsg(user.getAllInfos() + "PRIVMSG " + (*target).getNickName() + " " + msg[2] + "\r\n");
+
+	// user.sendMsg("PRIVMSG bbordere " + msg.back() + "\r\n");
+	// 		users[i].sendMsg(Server::formatMsg(msg, sender));
+
+	// :bbordere!bbordere@localhost PRIVMSG bbordere_ :salutik
+	// :bbordere!bbordere@localhost PRIVMSG #kilo :qwe
+}
+
+void	Server::__privMsg(vec_str_t const &msg, User const &user)
+{
+	std::string chanName = msg[1];
+	if (chanName.find('#') == std::string::npos)
+	{
+		__userPrivMsg(msg, user);
+		return;
+	}
 
 	if (!_channels.at(chanName).isInChan(user))
 	{
@@ -282,7 +309,8 @@ void	Server::__privMsg(std::string const &msg, User const &user)
 
 	try
 	{
-		_channels.at(chanName).broadcast(msg, user, _users);
+		//TO DO: Changer structure broadcast pour garder le vector
+		_channels.at(chanName).broadcast(vecToStr(msg), user, _users);
 	}
 	catch(const std::exception& e)
 	{
@@ -514,6 +542,21 @@ Server::vec_str_t Server::__parseCmd2(std::string str) const
 	return (res);
 }
 
+void	Server::__dccParsing(vec_str_t const &msg, User const &user)
+{
+	std::string toParse = msg.back();
+	vec_str_t sp = split(&toParse[1], " ");
+	std::vector<User>::const_iterator target = getUserByNick(msg[1]);
+	if (target == _users.end())
+	{
+		std::cout << "Not found " << msg[1] << '\n';
+		return;
+	}
+	(*target).sendMsg(user.getAllInfos() + "PRIVMSG " + (*target).getNickName() + " " + msg[2] + "\r\n");
+
+	// __userPrivMsg(sp, user);
+}
+
 void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
@@ -561,8 +604,7 @@ void	Server::__handlePackets(void)
 				else if (msg.find("PING") != std::string::npos)
 					__sendPong(msg, _users[i - 1]);
 				else if (msg.find("PRIVMSG") != std::string::npos)
-					__privMsg(msg, _users[i - 1]);
-
+					__privMsg(vecCmd, _users[i - 1]);
 				else if (msg.find("MODE") != std::string::npos)
 					__changeChanMode(vecCmd, _users[i - 1]);
 				else if (msg.find("INVITE") != std::string::npos)
@@ -622,7 +664,7 @@ std::vector<std::string> Server::__parseCmd(std::string str) {
 
     if (str[0] != ':')
         cmd.push_back("");        
-    int size = str.find(' '); 
+    int size = str.find(' ');
     while (size != -1) {
         cmd.push_back(str.substr(0, size));
         str.erase(str.begin(), str.begin() + size + 1);

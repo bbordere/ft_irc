@@ -74,5 +74,6 @@ std::string numberToString(T n)
 }
 
 std::vector<std::string> split(std::string str, std::string const &delimiter);
+std::string vecToStr(std::vector<std::string> const &vec);
 
 #endif
