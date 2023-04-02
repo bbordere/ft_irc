@@ -73,6 +73,8 @@ std::string numberToString(T n)
 	return oOStrStream.str();
 }
 
+uint64_t hash(std::string const &str);
+
 std::vector<std::string> split(std::string str, std::string const &delimiter);
 std::string vecToStr(std::vector<std::string> const &vec);
 

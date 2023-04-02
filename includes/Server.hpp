@@ -101,7 +101,7 @@ class Server
 		void	__userCMD(vec_str_t const &msg, User &user) const;
 		void	__passCMD(vec_str_t const &msg, User &user) const;
 
-		void	__joinExistingChan(std::string const &name, User const &user);
+		void	__joinExistingChan(vec_str_t const &name, User const &user);
 
 		void	__inviteCMD(vec_str_t const &msg, User const &user);
 		void	__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user);
@@ -125,7 +125,9 @@ class Server
 
 		void	__dccParsing(vec_str_t const &msg, User const &user);
 		
+		void	__topicCMD(vec_str_t const &msg, User const &user);
 
+		map_chan_t::iterator __searchChannel(std::string const &name, User const &user);
 
 	public:
 

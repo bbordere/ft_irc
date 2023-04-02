@@ -1,8 +1,8 @@
 #include "Channel.hpp"
 #include "Server.hpp"
 
-Channel::Channel(std::string const &name): _name(name), _topic("Random Topic"),
-											_mode(0) {}
+Channel::Channel(std::string const &name): _name(name), _topic("Default Topic"),
+											_key(""), _maxUsers(0), _mode(0) {}
 
 void	Channel::setName(std::string const &name)
 {
@@ -22,6 +22,11 @@ std::string const &Channel::getName(void) const
 std::string const &Channel::getTopic(void) const
 {
 	return (_topic);
+}
+
+std::string const &Channel::getKey(void) const
+{
+	return (_key);
 }
 
 void	Channel::addUser(User const &user)
@@ -60,6 +65,11 @@ void	Channel::unsetModeUser(User const &user, USER_MODES const mode)
 		return;
 	uint16_t cur = _users.at(user.getId());
 	_users[user.getId()] = CLEAR_N_BIT(cur, mode);
+}
+
+void	Channel::setMaxUser(uint64_t const &newLimit)
+{
+	_maxUsers = newLimit;
 }
 
 bool	Channel::checkCondition(std::string const &name, User const &user) const
@@ -107,6 +117,42 @@ bool	Channel::isEmpty(void) const
 	return (_users.empty());
 }
 
+bool	Channel::checkUserLimit(void) const
+{
+	return (!_maxUsers || _users.size() < _maxUsers);
+}
+
+void	Channel::announceJoin(User const &user, std::vector<User> const &users, std::string const &usersList) const
+{
+	user.sendMsg(Server::formatMsg(std::string("JOIN ") + _name + std::string(" Join Message"), user));
+	user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, user.getNickName(), "= " + _name, ":" + usersList));
+	user.sendMsg(Server::getRPLString(RPL::RPL_ENDOFNAMES, user.getNickName(), _name, ":End of /NAMES LIST"));
+	broadcast(std::string("JOIN ") + _name + std::string(" Join Message"), user, users);
+}
+
+bool	Channel::checkJoinConditions(User const &user, vec_str_t const &msg) const
+{
+	bool res = true;
+	std::pair<RPL::CODE, std::string> rpl[] = {std::make_pair(RPL::ERR_INVITEONLYCHAN, ":Cannot join channel (+i)"),
+											std::make_pair(RPL::ERR_BADCHANNELKEY, ":Cannot join channel (+k) - bad key"),
+											std::make_pair(RPL::ERR_CHANNELISFULL, ":Chan is full"),
+											std::make_pair(RPL::ERR_BANNEDFROMCHAN, ":You're banned from this channel")};
+	int8_t errIndex = -1;
+	if (isInMode(BIT(Channel::INV_ONLY)))
+		res = res & isInvited(user);
+	++errIndex;
+	if (isInMode(BIT(Channel::KEY_LOCK)))
+		res = res & (msg.size() == 3 && msg[2] == _key);
+	++errIndex;
+	if (isInMode(BIT(Channel::USR_LIM)))
+		res = res & checkUserLimit();
+	++errIndex;
+	//TO DO IMPLEMENT BAN 
+	if (!res)
+		user.sendMsg(Server::getRPLString(rpl->first, user.getNickName(), _name, rpl->second));
+	return (res);
+}
+
 std::string const Channel::__formatMsg(std::string const &msg, User const &sender)
 {
 	std::vector<std::string> sp = split(msg, " ");
@@ -152,7 +198,7 @@ std::string Channel::getModeString(void) const
 	return (res);
 }
 
-void	Channel::broadcast(std::string const &msg, User const &sender, std::vector<User> const &users)
+void	Channel::broadcast(std::string const &msg, User const &sender, std::vector<User> const &users) const
 {
 	for (std::size_t i = 0; i < users.size(); ++i)
 	{
@@ -166,6 +212,10 @@ std::size_t Channel::getNbUsers(void) const
 	return (_users.size());
 }
 
+uint64_t	Channel::getMaxUsers(void) const
+{
+	return (_maxUsers);
+}
 
 uint8_t Channel::getMode(void) const
 {
@@ -174,7 +224,8 @@ uint8_t Channel::getMode(void) const
 
 std::ostream &operator<<(std::ostream &stream, Channel const &chan)
 {
-	(void)chan;
-	stream << "Chan";
+	stream << "{Topic: " << chan.getTopic() << ", key: " << chan.getKey();
+	stream << ", maxUser: " << chan.getMaxUsers() << ", mode: " << chan.getModeString();
+	stream << ", nb User " << chan.getNbUsers() << '}';
 	return (stream);
 }
