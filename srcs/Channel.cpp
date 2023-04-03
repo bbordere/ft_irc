@@ -72,6 +72,11 @@ void	Channel::setMaxUser(uint64_t const &newLimit)
 	_maxUsers = newLimit;
 }
 
+void	Channel::setKey(std::string const &key)
+{
+	_key = key;
+}
+
 bool	Channel::checkCondition(std::string const &name, User const &user) const
 {
 	if (!isInChan(user))
@@ -107,6 +112,11 @@ bool	Channel::isOp(User const &user) const
 	return (GET_N_BIT(_users.at(user.getId()), CHAN_CREATOR) || GET_N_BIT(_users.at(user.getId()), CHAN_OP));
 }
 
+bool	Channel::isVoiced(User const &user) const
+{
+	return (isOp(user) || GET_N_BIT(_users.at(user.getId()), VOICE));
+}
+
 bool	Channel::isInMode(uint8_t const &mode) const
 {
 	return	 ((_mode & mode) != 0);
@@ -132,25 +142,48 @@ void	Channel::announceJoin(User const &user, std::vector<User> const &users, std
 
 bool	Channel::checkJoinConditions(User const &user, vec_str_t const &msg) const
 {
-	bool res = true;
+
 	std::pair<RPL::CODE, std::string> rpl[] = {std::make_pair(RPL::ERR_INVITEONLYCHAN, ":Cannot join channel (+i)"),
 											std::make_pair(RPL::ERR_BADCHANNELKEY, ":Cannot join channel (+k) - bad key"),
 											std::make_pair(RPL::ERR_CHANNELISFULL, ":Chan is full"),
+											std::make_pair(RPL::ERR_INVITEONLYCHAN, ":Cannot join private channel"),
 											std::make_pair(RPL::ERR_BANNEDFROMCHAN, ":You're banned from this channel")};
-	int8_t errIndex = -1;
-	if (isInMode(BIT(Channel::INV_ONLY)))
-		res = res & isInvited(user);
-	++errIndex;
-	if (isInMode(BIT(Channel::KEY_LOCK)))
-		res = res & (msg.size() == 3 && msg[2] == _key);
-	++errIndex;
-	if (isInMode(BIT(Channel::USR_LIM)))
-		res = res & checkUserLimit();
-	++errIndex;
-	//TO DO IMPLEMENT BAN 
-	if (!res)
-		user.sendMsg(Server::getRPLString(rpl->first, user.getNickName(), _name, rpl->second));
-	return (res);
+
+
+	/*
+	**Tab pour les check les conditions
+	** first -> condition a respecter
+	** second -> condition est-elle respectee ?
+	*/
+	//TO DO ADD BAN
+	std::pair<bool, bool> conditions[] = {std::make_pair(isInMode(BIT(Channel::INV_ONLY)), isInvited(user)),
+											std::make_pair(isInMode(BIT(Channel::KEY_LOCK)), (msg.size() == 3 && numberToString(hash(msg[2])) == _key)),
+											std::make_pair(isInMode(BIT(Channel::USR_LIM)), checkUserLimit()),
+											std::make_pair(isInMode(BIT(Channel::PRIV)), isInvited(user))};
+	for (std::size_t i = 0; i < 4; ++i)
+	{
+		if (conditions[i].first && !conditions[i].second)
+		{
+			user.sendMsg(Server::getRPLString(rpl[i].first, user.getNickName(), _name, rpl[i].second));
+			return (false);
+		}
+	}
+	return (true);
+}
+
+bool	Channel::checkSendConditions(User const &user, vec_str_t const &msg) const
+{
+	if (isInMode(BIT(Channel::NO_OUT)) && !isInChan(user))
+	{
+		user.sendMsg(Server::formatMsg(numberToString(RPL::ERR_CANNOTSENDTOCHAN) + " " + _name + std::string(" :Not in chan"), user));
+		return (false);
+	}
+	if (isInMode(BIT(Channel::MODERATED)) && !isVoiced(user))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_CANNOTSENDTOCHAN, _name, ":You don't have permision to talk here !"));
+		return (false);
+	}
+	return (true);
 }
 
 std::string const Channel::__formatMsg(std::string const &msg, User const &sender)
@@ -224,8 +257,8 @@ uint8_t Channel::getMode(void) const
 
 std::ostream &operator<<(std::ostream &stream, Channel const &chan)
 {
-	stream << "{Topic: " << chan.getTopic() << ", key: " << chan.getKey();
-	stream << ", maxUser: " << chan.getMaxUsers() << ", mode: " << chan.getModeString();
-	stream << ", nb User " << chan.getNbUsers() << '}';
+	stream << "{Topic: " << chan.getTopic() << ", key: " << (chan.getKey().empty() ? "\"\"" : chan.getKey());
+	stream << ", maxUser: " << chan.getMaxUsers() << ", mode: " << (chan.getModeString().empty() ? "\"\"" : chan.getModeString());
+	stream << ", nb User: " << chan.getNbUsers() << '}';
 	return (stream);
 }

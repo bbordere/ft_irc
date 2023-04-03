@@ -65,6 +65,7 @@ class Channel
 		bool	isInvited(User const &user) const;
 		bool	isInChan(User const &user) const;
 		bool	isOp(User const &user) const;
+		bool	isVoiced(User const &user) const;
 		bool	isEmpty(void) const;
 		bool	isInMode(uint8_t const &mode) const;
 		bool	checkUserLimit(void) const;
@@ -72,6 +73,9 @@ class Channel
 		void	announceJoin(User const &user, std::vector<User> const &users, std::string const &usersList) const;
 
 		bool	checkJoinConditions(User const &user, vec_str_t const &msg) const;
+		bool	checkSendConditions(User const &user, vec_str_t const &msg) const;
+
+		void	setKey(std::string const &key);
 
 		uint8_t getMode(void) const;
 

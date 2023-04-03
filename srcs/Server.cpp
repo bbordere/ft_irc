@@ -169,7 +169,6 @@ void	Server::__joinExistingChan(vec_str_t const &msg, User const &user)
 
 void	Server::__joinChannel(vec_str_t const &msg, User const &user)
 {
-	std::cout << msg << '\n';
 	if (_channels.count(msg[1]))
 		__joinExistingChan(msg, user);
 	else
@@ -280,23 +279,20 @@ void	Server::__privMsg(vec_str_t const &msg, User const &user)
 		return;
 	}
 
-	if (_channels.at(chanName).isInMode(BIT(Channel::NO_OUT)) && !_channels.at(chanName).isInChan(user))
+	map_chan_t::const_iterator chanIt = _channels.find(chanName);
+	if (chanIt == _channels.end())
 	{
-		user.sendMsg(Server::formatMsg(numberToString(RPL::ERR_CANNOTSENDTOCHAN) + " " + chanName + std::string(" :Not in chan"), user));
-		return ;
+		//ERROR HANDLING
+		return;
 	}
 
-	try
-	{
-		std::cout << "Hash of msg: " << hash(vecToStr(msg)) << '\n';
-		//TO DO: Changer structure broadcast pour garder le vector
-		_channels.at(chanName).broadcast(vecToStr(msg), user, _users);
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << e.what() << '\n';
-	}
-	
+	Channel const &chan = (*chanIt).second;
+	if (!chan.checkSendConditions(user, msg))
+		return;
+
+	std::cout << "Hash of msg: " << hash(vecToStr(msg)) << '\n';
+	//TO DO: Changer structure broadcast pour garder le vector
+	chan.broadcast(vecToStr(msg), user, _users);	
 }
 
 void	Server::__updateChannels(void)
@@ -354,6 +350,7 @@ void	Server::__usrModeHandling(vec_str_t const &msg, User &user)
 
 void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 {
+
 	if (std::find_if(msg.begin(), msg.end(), __isChanRelated) == msg.end())
 	{
 		__usrModeHandling(msg, user);
@@ -397,6 +394,16 @@ void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 			chan.setMaxUser(std::atoll(msg[3].c_str()));
 		else
 			chan.setMaxUser(0);
+	}
+	else if (msg[2][1] == 'k')
+	{
+		if (msg.size() == 4)
+			chan.setKey(numberToString(hash(msg[3])));
+		else
+		{
+			chan.updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
+			chan.setKey("");
+		}
 	}
 }
 
@@ -549,6 +556,11 @@ void	Server::__topicCMD(vec_str_t const &msg, User const &user)
 	if (chanIt == _channels.end())
 		return;
 	Channel &chan = (*chanIt).second;
+	if (chan.isInMode(BIT(Channel::TOP_LOCK)) && !chan.isOp(user))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_CHANOPRIVSNEEDED, chan.getName(), ":You don't have permision to do this !"));
+		return;
+	}
 	chan.setTopic(&msg[2][1]);
 	chan.broadcast(user.getAllInfos() + " TOPIC " + msg[1] + " " + msg[2], _users);
 }
@@ -618,19 +630,15 @@ void	Server::__handlePackets(void)
 	// __printDebug();
 }
 
-#include <bitset>
-
 void	Server::__printDebug(void) const
 {
-	system("clear");
+	std::cout << "\033[2J" << std::flush;
 	std::cout << "------CHANNEL------" << '\n';
 	std::cout << _channels.size() << " ACTIVE: " << '\n';
 	for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it)
 	{
 		std::cout << (*it).first << '\t';
-		// std::cout << "\t" << (*it).second._users << " ";
 		std::cout << (*it).second << '\n';
-		std::cout << "mode: " << std::bitset<8>((*it).second.getMode()) << '\n';
 	}
 	std::cout << "------USERS------" << '\n';
 	std::cout << _users.size() << " CONNECTED: " << '\n';
