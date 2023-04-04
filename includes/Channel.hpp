@@ -21,6 +21,8 @@ class Channel
 		uint8_t	_mode;
 
 		std::string const __formatMsg(std::string const &msg, User const &sender);
+		void	__updateMode(uint8_t const mode);
+		bool	__checkChangeModeCondition(std::string const &name, User const &user) const;
 	
 	public:
 
@@ -43,6 +45,7 @@ class Channel
 		};
 
 		userMap_t _users;
+
 		void	setName(std::string const &name);
 		void	setTopic(std::string const &topic);
 
@@ -57,9 +60,10 @@ class Channel
 
 		void	setMaxUser(uint64_t const &newLimit);
 
-		bool	checkCondition(std::string const &name, User const &user) const;
 
-		void	updateMode(uint8_t const mode);
+		bool	changeMode(vec_str_t const &msg, User &user, std::vector<User> const &users);
+		bool	changeUserMode(vec_str_t const &msg, User &user, std::vector<User> const &users);
+
 		std::size_t getNbUsers(void) const;
 
 		bool	isInvited(User const &user) const;
@@ -73,7 +77,7 @@ class Channel
 		void	announceJoin(User const &user, std::vector<User> const &users, std::string const &usersList) const;
 
 		bool	checkJoinConditions(User const &user, vec_str_t const &msg) const;
-		bool	checkSendConditions(User const &user, vec_str_t const &msg) const;
+		bool	checkSendConditions(User const &user) const;
 
 		void	setKey(std::string const &key);
 

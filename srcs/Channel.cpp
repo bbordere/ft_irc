@@ -77,7 +77,65 @@ void	Channel::setKey(std::string const &key)
 	_key = key;
 }
 
-bool	Channel::checkCondition(std::string const &name, User const &user) const
+
+bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> const &users)
+{
+	if (!__checkChangeModeCondition(msg[1], user))
+		return (false);
+	std::string const possibilities = "imnptkl";
+	if (msg[2].size() != 2 || possibilities.find(msg[2][1]) == std::string::npos)
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, msg[1], ":Unknown flag"));
+		return (false);
+	}
+	uint8_t curMode = getMode();
+	if (msg[2][0] == '+')
+		__updateMode(SET_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
+	else
+		__updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
+	broadcast(user.getAllInfos() + " MODE " + msg[1] + " " + msg[2], users);
+	if (msg[2][1] == 'l')
+	{
+		if (msg.size() == 4)
+			setMaxUser(std::atoll(msg[3].c_str()));
+		else
+			setMaxUser(0);
+	}
+	else if (msg[2][1] == 'k')
+	{
+		if (msg.size() == 4)
+			setKey(numberToString(hash(msg[3])));
+		else
+		{
+			__updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
+			setKey("");
+		}
+	}
+	return (true);
+}
+
+bool	Channel::changeUserMode(vec_str_t const &msg, User &user, std::vector<User> const &users)
+{
+
+	if (!__checkChangeModeCondition(msg[1], user))
+		return (false);
+	if (msg[2].size() != 2 || (msg[2][1] != 'o' && msg[2][1] != 'v'))
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, msg[1], ":Unknown flag"));
+		return (false);
+	}
+	typedef void (Channel::*ptr)(User const &user, Channel::USER_MODES);
+	ptr fct[] = {&Channel::setModeUser, &Channel::unsetModeUser};
+	User const &target = *(std::find_if(users.begin(), users.end(), nickCompByNick(msg[3])));
+	if (msg[2][1] == 'o')
+		(this->*(fct[msg[2][0] == '-']))(target, Channel::CHAN_OP);
+	else
+		(this->*(fct[msg[2][0] == '-']))(target, Channel::VOICE);
+	broadcast(user.getAllInfos() + " MODE " + msg[1] + " " + msg[2] + " " + msg[3], users);
+	return (true);
+}
+
+bool	Channel::__checkChangeModeCondition(std::string const &name, User const &user) const
 {
 	if (!isInChan(user))
 	{
@@ -92,7 +150,7 @@ bool	Channel::checkCondition(std::string const &name, User const &user) const
 	return (true);
 }
 
-void	Channel::updateMode(uint8_t const mode)
+void	Channel::__updateMode(uint8_t const mode)
 {
 	_mode = mode;
 }
@@ -135,8 +193,8 @@ bool	Channel::checkUserLimit(void) const
 void	Channel::announceJoin(User const &user, std::vector<User> const &users, std::string const &usersList) const
 {
 	user.sendMsg(Server::formatMsg(std::string("JOIN ") + _name + std::string(" Join Message"), user));
-	user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, user.getNickName(), "= " + _name, ":" + usersList));
-	user.sendMsg(Server::getRPLString(RPL::RPL_ENDOFNAMES, user.getNickName(), _name, ":End of /NAMES LIST"));
+	user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, &user.getAllInfos()[1], "= " + _name, ":" + usersList));
+	user.sendMsg(Server::getRPLString(RPL::RPL_ENDOFNAMES, &user.getAllInfos()[1], _name, ":End of /NAMES LIST"));
 	broadcast(std::string("JOIN ") + _name + std::string(" Join Message"), user, users);
 }
 
@@ -171,7 +229,7 @@ bool	Channel::checkJoinConditions(User const &user, vec_str_t const &msg) const
 	return (true);
 }
 
-bool	Channel::checkSendConditions(User const &user, vec_str_t const &msg) const
+bool	Channel::checkSendConditions(User const &user) const
 {
 	if (isInMode(BIT(Channel::NO_OUT)) && !isInChan(user))
 	{
@@ -259,6 +317,7 @@ std::ostream &operator<<(std::ostream &stream, Channel const &chan)
 {
 	stream << "{Topic: " << chan.getTopic() << ", key: " << (chan.getKey().empty() ? "\"\"" : chan.getKey());
 	stream << ", maxUser: " << chan.getMaxUsers() << ", mode: " << (chan.getModeString().empty() ? "\"\"" : chan.getModeString());
-	stream << ", nb User: " << chan.getNbUsers() << '}';
+	stream << ", nb User: " << chan.getNbUsers();
+	stream << ", users: " << chan._users << '}';
 	return (stream);
 }

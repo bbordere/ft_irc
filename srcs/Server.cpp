@@ -80,13 +80,33 @@ std::string Server::__getChanUsersList(Channel const &chan) const
 	for (std::size_t i = 0; i < _users.size() - 1; ++i)
 	{
 		if (chan.isInChan(_users[i]))
-			res += _users[i].getNickName() + " ";
+		{
+			char c = '\0';
+			if (chan.isOp(_users[i]))
+				c = '@';
+			else if (chan.isVoiced(_users[i]))
+				c = '+';
+			res += c + _users[i].getNickName() + " ";
+		}
+
 	}
-	if (chan.isInChan(_users[_users.size() - 1]))
-			res += _users[_users.size() - 1].getNickName();
+
+// > 1 | :bbordere_!bbordere@localhost JOIN #k
+// > 1 | 353 bbordere_!bbordere@localhost = #k :@bbordere bbordere_
+//      353 :bbordere_!bbordere@localhost  = #k :@bbordere bbordere_
+// > 1 | 366 bbordere_!bbordere@localhost #k :End of /NAMES list
+
+	if (chan.isInChan(_users.back()))
+	{
+		char c = '\0';
+		if (chan.isOp(_users.back()))
+			c = '@';
+		else if (chan.isVoiced(_users.back()))
+			c = '+';
+		res += c + _users.back().getNickName();
+	}
 	return (res);
 }
-
 
 void	Server::__nickCMD(vec_str_t const &msg, User &user) const
 {
@@ -287,7 +307,7 @@ void	Server::__privMsg(vec_str_t const &msg, User const &user)
 	}
 
 	Channel const &chan = (*chanIt).second;
-	if (!chan.checkSendConditions(user, msg))
+	if (!chan.checkSendConditions(user))
 		return;
 
 	std::cout << "Hash of msg: " << hash(vecToStr(msg)) << '\n';
@@ -350,59 +370,31 @@ void	Server::__usrModeHandling(vec_str_t const &msg, User &user)
 
 void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 {
-
-	if (std::find_if(msg.begin(), msg.end(), __isChanRelated) == msg.end())
-	{
-		__usrModeHandling(msg, user);
-		return;
-	}
-
 	if (!__isChanExist(msg[1]))
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, msg[1], ":No such channel"));
 		return;	
 	}
-
 	Channel &chan = _channels.at(msg[1]);
-
-	if (msg.size() == 2)
+	switch (msg.size())
 	{
-		user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), msg[1], chan.getModeString()));
-		return;	
-	}
-
-	if (!chan.checkCondition(msg[1], user))
-		return ;
-	
-	std::string const possibilities = "imnptkl";
-	if (msg[2].size() != 2 || possibilities.find(msg[2][1]) == std::string::npos)
-	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, msg[1], ":Unknown flag"));
-		return;
-	}
-
-	uint8_t curMode = chan.getMode();
-	if (msg[2][0] == '+')
-		chan.updateMode(SET_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
-	else
-		chan.updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
-	chan.broadcast(user.getAllInfos() + " MODE " + msg[1] + " " + msg[2], _users);
-
-	if (msg[2][1] == 'l')
-	{
-		if (msg.size() == 4)
-			chan.setMaxUser(std::atoll(msg[3].c_str()));
-		else
-			chan.setMaxUser(0);
-	}
-	else if (msg[2][1] == 'k')
-	{
-		if (msg.size() == 4)
-			chan.setKey(numberToString(hash(msg[3])));
-		else
+		case 2:
 		{
-			chan.updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
-			chan.setKey("");
+			user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), msg[1], chan.getModeString()));
+			break;
+		}
+		case 3:
+		{
+			chan.changeMode(msg, user, _users);
+			break;
+		}
+		case 4:
+		{
+			if (std::isalpha(msg[3][0]))
+				chan.changeUserMode(msg, user, _users);
+			else
+				chan.changeMode(msg, user, _users);
+			break;
 		}
 	}
 }
@@ -627,7 +619,6 @@ void	Server::__handlePackets(void)
 	}
 	__updateChannels();
 	__checkAuthClients();
-	// __printDebug();
 }
 
 void	Server::__printDebug(void) const
@@ -695,6 +686,6 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
-		__printDebug();
+		// __printDebug();
 	}
 }
