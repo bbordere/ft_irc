@@ -75,35 +75,18 @@ bool	Server::__checkNickName(std::string const &nick) const
 
 std::string Server::__getChanUsersList(Channel const &chan) const
 {
-	std::string res;
+	std::string res = "";
 
-	for (std::size_t i = 0; i < _users.size() - 1; ++i)
+	for (std::size_t i = 0; i < _users.size(); ++i)
 	{
 		if (chan.isInChan(_users[i]))
 		{
-			char c = '\0';
 			if (chan.isOp(_users[i]))
-				c = '@';
+				res += '@';
 			else if (chan.isVoiced(_users[i]))
-				c = '+';
-			res += c + _users[i].getNickName() + " ";
+				res += '+';
+			res += _users[i].getNickName() + " ";
 		}
-
-	}
-
-// > 1 | :bbordere_!bbordere@localhost JOIN #k
-// > 1 | 353 bbordere_!bbordere@localhost = #k :@bbordere bbordere_
-//      353 :bbordere_!bbordere@localhost  = #k :@bbordere bbordere_
-// > 1 | 366 bbordere_!bbordere@localhost #k :End of /NAMES list
-
-	if (chan.isInChan(_users.back()))
-	{
-		char c = '\0';
-		if (chan.isOp(_users.back()))
-			c = '@';
-		else if (chan.isVoiced(_users.back()))
-			c = '+';
-		res += c + _users.back().getNickName();
 	}
 	return (res);
 }
@@ -164,7 +147,7 @@ void	Server::__handleConnection(void)
 	}
 
 	User newUser(userFd, usrAddr);
-	newUser.setHostName(hostnameBuff);
+	newUser.setHostName(std::string(hostnameBuff));
 	struct pollfd newPFd;
 	newPFd.events = POLLIN;
 	newPFd.fd = newUser.getFd();
@@ -215,7 +198,7 @@ void	Server::__disconnectUser(User const &user, std::size_t const &i)
 std::string const Server::formatMsg(std::string const &msg, User const &sender)
 {
 	std::vector<std::string> sp = split(msg, " ");
-	std::string res = sender.getAllInfos();
+	std::string res = sender.getAllInfos() + " ";
 	res.append(sp[0]);
 	res.append(" ");
 	res.append(sp[1]);
@@ -287,7 +270,7 @@ void	Server::__userPrivMsg(vec_str_t const &msg, User const &user)
 		std::cout << "Not found " << msg[1] << '\n';
 		return;
 	}
-	(*target).sendMsg(user.getAllInfos() + "PRIVMSG " + (*target).getNickName() + " " + msg[2]);
+	(*target).sendMsg(user.getAllInfos() + " PRIVMSG " + (*target).getNickName() + " " + msg[2]);
 }
 
 void	Server::__privMsg(vec_str_t const &msg, User const &user)
@@ -370,6 +353,8 @@ void	Server::__usrModeHandling(vec_str_t const &msg, User &user)
 
 void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 {
+	if (msg[1].find('#') == std::string::npos)
+		return;
 	if (!__isChanExist(msg[1]))
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, msg[1], ":No such channel"));
@@ -402,9 +387,8 @@ void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 void	Server::__sendPong(std::string const &msg, User const &user) const
 {
 	std::vector<std::string> sp = split(msg, " ");
-	std::string rpl;
-	rpl.append("PONG :");
-	rpl.append(user.getHostName());
+	std::string rpl = "PONG :";
+	rpl += user.getHostName();
 	user.sendMsg(rpl);
 }
 
@@ -417,6 +401,7 @@ void	Server::__sendWelcomeMsg(User const &user)
 	msg2.append(" Welcome to OurNetwork, ");
 	msg2.append(&user.getAllInfos()[1]);
 	user.sendMsg(msg2);
+	__motdCMD(vec_str_t(), user);
 }
 
 void	Server::__checkAuthClients(void)
@@ -539,7 +524,7 @@ void	Server::__dccParsing(vec_str_t const &msg, User const &user)
 		std::cout << "Not found " << msg[1] << '\n';
 		return;
 	}
-	(*target).sendMsg(user.getAllInfos() + "PRIVMSG " + (*target).getNickName() + " " + msg[2] + "\r\n");
+	(*target).sendMsg(user.getAllInfos() + " PRIVMSG " + (*target).getNickName() + " " + msg[2] + "\r\n");
 }
 
 void	Server::__topicCMD(vec_str_t const &msg, User const &user)
@@ -555,6 +540,21 @@ void	Server::__topicCMD(vec_str_t const &msg, User const &user)
 	}
 	chan.setTopic(&msg[2][1]);
 	chan.broadcast(user.getAllInfos() + " TOPIC " + msg[1] + " " + msg[2], _users);
+}
+
+void	Server::__motdCMD(vec_str_t const &msg, User const &user)
+{
+	(void)msg;
+	user.sendMsg("375 " + user.getNickName() + " - Message of the day -");
+	user.sendMsg("372 " + user.getNickName() + "   __ _     _          ");
+	user.sendMsg("372 " + user.getNickName() + "  / _| |   (_)         ");
+	user.sendMsg("372 " + user.getNickName() + " | |_| |_   _ _ __ ___ ");
+	user.sendMsg("372 " + user.getNickName() + " |  _| __| | | '__/ __|");
+	user.sendMsg("372 " + user.getNickName() + " | | | |_  | | | | (__ ");
+	user.sendMsg("372 " + user.getNickName() + " |_|  \\__| |_|_|  \\___|");
+	user.sendMsg("372 " + user.getNickName() + "       ______          ");
+	user.sendMsg("372 " + user.getNickName() + "      |______|         ");
+	user.sendMsg("376 " + user.getNickName() + " End of the Message the day");
 }
 
 
@@ -603,6 +603,8 @@ void	Server::__handlePackets(void)
 				else if (msg.find("PART") != std::string::npos)
 					__leaveChannel(vecCmd, _users[i - 1]);
 
+				else if (msg.find("DIR") != std::string::npos)
+					_users[0].sendMsg(&msg[4]);
 
 				else if (msg.find("PING") != std::string::npos)
 					__sendPong(msg, _users[i - 1]);
@@ -612,6 +614,8 @@ void	Server::__handlePackets(void)
 					__changeChanMode(vecCmd, _users[i - 1]);
 				else if (msg.find("TOPIC") != std::string::npos)
 					__topicCMD(vecCmd, _users[i - 1]);
+				else if (msg.find("motd") != std::string::npos)
+					__motdCMD(vecCmd, _users[i - 1]);
 				else if (msg.find("INVITE") != std::string::npos)
 					__inviteCMD(vecCmd, _users[i - 1]);
 			}

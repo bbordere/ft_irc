@@ -130,7 +130,7 @@ void	User::sendMsg(std::string const &msg) const
 	// std::cout << "SEND = " << to_send << '\n';
 	// to_send.append("\r\n"); 
 	std::string to_send = msg + "\r\n";
-	std::cout << "Send to client: " << to_send << '\n';
+	std::cout << "Send to client N" <<  _id << ": " << to_send << '\n';
 	send(_fd, to_send.c_str(), to_send.length(), 0);
 }
 
@@ -143,7 +143,7 @@ void	User::updateMode(std::string const &str)
 
 std::string const User::getAllInfos(void) const
 {
-	std::string res = ":" + _nickName + "!" + _name + "@" + _hostName + " ";
+	std::string res = ":" + _nickName + "!" + _name + "@" + _hostName;
 	return (res);
 }
 

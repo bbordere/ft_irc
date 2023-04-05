@@ -127,6 +127,8 @@ class Server
 		
 		void	__topicCMD(vec_str_t const &msg, User const &user);
 
+		void	__motdCMD(vec_str_t const &msg, User const &user);
+
 		map_chan_t::iterator __searchChannel(std::string const &name, User const &user);
 
 	public:

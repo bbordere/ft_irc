@@ -89,6 +89,9 @@ bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> con
 		return (false);
 	}
 	uint8_t curMode = getMode();
+	if (msg[2][0] == 'b')
+		return (true);
+
 	if (msg[2][0] == '+')
 		__updateMode(SET_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
 	else
@@ -119,6 +122,13 @@ bool	Channel::changeUserMode(vec_str_t const &msg, User &user, std::vector<User>
 
 	if (!__checkChangeModeCondition(msg[1], user))
 		return (false);
+	std::vector<User>::const_iterator targetIt = std::find_if(users.begin(), users.end(), nickCompByNick(msg[3]));
+	if (targetIt == users.end())
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, msg[3], ":Not in chan !"));
+		return (false);
+	}
+
 	if (msg[2].size() != 2 || (msg[2][1] != 'o' && msg[2][1] != 'v'))
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, msg[1], ":Unknown flag"));
@@ -126,11 +136,10 @@ bool	Channel::changeUserMode(vec_str_t const &msg, User &user, std::vector<User>
 	}
 	typedef void (Channel::*ptr)(User const &user, Channel::USER_MODES);
 	ptr fct[] = {&Channel::setModeUser, &Channel::unsetModeUser};
-	User const &target = *(std::find_if(users.begin(), users.end(), nickCompByNick(msg[3])));
 	if (msg[2][1] == 'o')
-		(this->*(fct[msg[2][0] == '-']))(target, Channel::CHAN_OP);
+		(this->*(fct[msg[2][0] == '-']))(*targetIt, Channel::CHAN_OP);
 	else
-		(this->*(fct[msg[2][0] == '-']))(target, Channel::VOICE);
+		(this->*(fct[msg[2][0] == '-']))(*targetIt, Channel::VOICE);
 	broadcast(user.getAllInfos() + " MODE " + msg[1] + " " + msg[2] + " " + msg[3], users);
 	return (true);
 }
@@ -192,10 +201,10 @@ bool	Channel::checkUserLimit(void) const
 
 void	Channel::announceJoin(User const &user, std::vector<User> const &users, std::string const &usersList) const
 {
-	user.sendMsg(Server::formatMsg(std::string("JOIN ") + _name + std::string(" Join Message"), user));
-	user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, &user.getAllInfos()[1], "= " + _name, ":" + usersList));
-	user.sendMsg(Server::getRPLString(RPL::RPL_ENDOFNAMES, &user.getAllInfos()[1], _name, ":End of /NAMES LIST"));
-	broadcast(std::string("JOIN ") + _name + std::string(" Join Message"), user, users);
+	broadcast(std::string("JOIN ") + _name + std::string(""), user, users);
+	user.sendMsg(Server::formatMsg(std::string("JOIN ") + _name + std::string(""), user));
+	user.sendMsg(Server::getRPLString(RPL::RPL_NAMREPLY, user.getNickName(), "= " + _name, ":" + usersList));
+	user.sendMsg(Server::getRPLString(RPL::RPL_ENDOFNAMES, user.getNickName(), _name, ":End of /NAMES list."));
 }
 
 bool	Channel::checkJoinConditions(User const &user, vec_str_t const &msg) const
@@ -247,7 +256,7 @@ bool	Channel::checkSendConditions(User const &user) const
 std::string const Channel::__formatMsg(std::string const &msg, User const &sender)
 {
 	std::vector<std::string> sp = split(msg, " ");
-	std::string res = sender.getAllInfos();
+	std::string res = sender.getAllInfos() + " ";
 	res.append(sp[0]);
 	res.append(" ");
 	res.append(sp[1]);

@@ -6,7 +6,7 @@
 
 class User
 {
-	private:
+	public:
 		std::string _name;
 		std::string _nickName;
 		std::string _hostName;
