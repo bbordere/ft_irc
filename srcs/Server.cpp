@@ -572,8 +572,11 @@ void	Server::__handlePackets(void)
 				__disconnectUser(_users[i - 1], i);
 			else
 			{
-				std::vector<std::string> vecCmd = __parseCmd2(buffer);
-
+				_users[i - 1]._buffer += buffer;
+				std::string msg(_users[i - 1]._buffer);
+				if (std::string(buffer).find("\r\n") == std::string::npos)
+					continue;
+				std::vector<std::string> vecCmd = __parseCmd2(msg);
 				std::cout << vecCmd << '\n';
 				std::map<std::string, ptrFonction>::iterator it = _serverCmd.end();
 				if (vecCmd.size() >= 2)
@@ -582,11 +585,10 @@ void	Server::__handlePackets(void)
 				if (it != _serverCmd.end()) // A changer notamment pour la partie auth
 					(*(it->second))(vecCmd); //exec cmd
 
-				std::string msg(buffer);
-				if (msg.size() == 1)
-					continue;
+				// if (msg.size() == 1)
+					// continue;
 				LOG_SEND(i, msg);
-				msg.erase(msg.end() - 2, msg.end());
+				// msg.erase(msg.end() - 2, msg.end());
 
 				if (msg.find("STOP") != std::string::npos)
 					_isOn = false;
@@ -618,6 +620,7 @@ void	Server::__handlePackets(void)
 					__motdCMD(vecCmd, _users[i - 1]);
 				else if (msg.find("INVITE") != std::string::npos)
 					__inviteCMD(vecCmd, _users[i - 1]);
+				_users[i - 1]._buffer.clear();
 			}
 		}
 	}

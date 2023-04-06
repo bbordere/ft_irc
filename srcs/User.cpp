@@ -1,17 +1,19 @@
 #include "User.hpp"
 
 User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName(""), _hostName(""), _fullName(""),
-					_password(""), _fd(fd), _mode(0), _isAuth(false),
+					_password(""), _buffer(""), _fd(fd), _mode(0), _isAuth(false),
 					_address(addr), _addressSize(sizeof(addr))
 {
 	_address.sin_family = AF_INET;
+	_buffer.reserve(1025);
 }
 
 User::User(std::string const &nick): _name(""), _nickName(nick), _hostName(""), _fullName(""),
-					_password(""), _fd(-1), _mode(0), _isAuth(false),
+					_password(""), _buffer(""), _fd(-1), _mode(0), _isAuth(false),
 					_address(), _addressSize()
 {
 	_address.sin_family = AF_INET;
+	_buffer.reserve(1025);
 }
 
 bool	User::isReadyToAuth(void) const
@@ -92,6 +94,11 @@ std::string const &User::getFullName(void) const
 std::string const &User::getPassword(void) const
 {
 	return (_password);
+}
+
+void *User::getBuffer(void)
+{
+	return (static_cast<void *>(&_buffer[0]));
 }
 
 int		const &User::getFd(void) const

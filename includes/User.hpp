@@ -12,13 +12,12 @@ class User
 		std::string _hostName;
 		std::string _fullName;
 		std::string _password;
+		std::string _buffer;
 		int			_fd;
-		// std::string	_buffer; // A voir
 		uint8_t		_mode;
 		bool		_isAuth;
 
-		uint32_t		_id;
-		// bool		_isConnected;
+		uint32_t			_id;
 		struct sockaddr_in	_address;
 		socklen_t			_addressSize;
 
@@ -53,6 +52,8 @@ class User
 		std::string const &getHostName(void) const;
 		std::string const &getFullName(void) const;
 		std::string const &getPassword(void) const;
+	
+		void *getBuffer(void);
 
 		bool	getAuthState(void) const;
 
