@@ -22,10 +22,11 @@ class Channel
 
 		std::string const __formatMsg(std::string const &msg, User const &sender);
 		void	__updateMode(uint8_t const mode);
-		bool	__checkChangeModeCondition(std::string const &name, User const &user) const;
 	
 	public:
+		userMap_t _users;
 
+		bool	checkModifCondition(User const &user) const;
 		enum CHAN_MODES
 		{
 			INV_ONLY = 1,
@@ -44,7 +45,6 @@ class Channel
 			VOICE
 		};
 
-		userMap_t _users;
 
 		void	setName(std::string const &name);
 		void	setTopic(std::string const &topic);
@@ -67,7 +67,9 @@ class Channel
 		std::size_t getNbUsers(void) const;
 
 		bool	isInvited(User const &user) const;
+
 		bool	isInChan(User const &user) const;
+
 		bool	isOp(User const &user) const;
 		bool	isVoiced(User const &user) const;
 		bool	isEmpty(void) const;

@@ -59,6 +59,7 @@ class Server
 
 		typedef std::map<std::string, Channel> map_chan_t;
 		typedef std::vector<std::string> vec_str_t;
+		typedef std::vector<User> vec_usr_t;
 
 	private:
 		typedef void* (*ptrFonction)(std::vector<std::string>);
@@ -82,6 +83,7 @@ class Server
 		void	__sendWelcomeMsg(User const &user);
 		std::map<std::string, ptrFonction>	__initCmd();
 		std::vector<std::string>			__parseCmd(std::string str);
+		bool	__checkMsgLen(vec_str_t const &msg, std::size_t const expected, User const &user) const;
 
 		void	__joinChannel(vec_str_t const &msg, User const &user);
 		void	__disconnectUser(User const &user, std::size_t const &i);
@@ -100,6 +102,11 @@ class Server
 
 		void	__userCMD(vec_str_t const &msg, User &user) const;
 		void	__passCMD(vec_str_t const &msg, User &user) const;
+
+		void	__kickCMD(vec_str_t const &msg, User const &user);
+
+		void	__leaveAllChan(User const &user);
+		void	__quitCMD(vec_str_t const &msg, User const &user);
 
 		void	__joinExistingChan(vec_str_t const &name, User const &user);
 

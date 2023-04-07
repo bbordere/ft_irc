@@ -6,7 +6,7 @@
 
 class User
 {
-	public:
+	private:
 		std::string _name;
 		std::string _nickName;
 		std::string _hostName;
@@ -53,7 +53,7 @@ class User
 		std::string const &getFullName(void) const;
 		std::string const &getPassword(void) const;
 	
-		void *getBuffer(void);
+		std::string &getBuffer(void);
 
 		bool	getAuthState(void) const;
 

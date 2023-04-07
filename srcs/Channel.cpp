@@ -80,7 +80,7 @@ void	Channel::setKey(std::string const &key)
 
 bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> const &users)
 {
-	if (!__checkChangeModeCondition(msg[1], user))
+	if (!checkModifCondition(user))
 		return (false);
 	std::string const possibilities = "imnptkl";
 	if (msg[2].size() != 2 || possibilities.find(msg[2][1]) == std::string::npos)
@@ -120,7 +120,7 @@ bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> con
 bool	Channel::changeUserMode(vec_str_t const &msg, User &user, std::vector<User> const &users)
 {
 
-	if (!__checkChangeModeCondition(msg[1], user))
+	if (!checkModifCondition(user))
 		return (false);
 	std::vector<User>::const_iterator targetIt = std::find_if(users.begin(), users.end(), nickCompByNick(msg[3]));
 	if (targetIt == users.end())
@@ -144,16 +144,16 @@ bool	Channel::changeUserMode(vec_str_t const &msg, User &user, std::vector<User>
 	return (true);
 }
 
-bool	Channel::__checkChangeModeCondition(std::string const &name, User const &user) const
+bool	Channel::checkModifCondition(User const &user) const
 {
 	if (!isInChan(user))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOTONCHANNEL, name, ":You are not in this channel !"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOTONCHANNEL, _name, ":You are not in this channel !"));
 		return (false);
 	}
 	if (!isOp(user))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_CHANOPRIVSNEEDED, name, ":You don't have permision to do this !"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_CHANOPRIVSNEEDED, _name, ":You don't have permision to do this !"));
 		return (false);
 	}
 	return (true);

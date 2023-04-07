@@ -96,9 +96,9 @@ std::string const &User::getPassword(void) const
 	return (_password);
 }
 
-void *User::getBuffer(void)
+std::string  &User::getBuffer(void)
 {
-	return (static_cast<void *>(&_buffer[0]));
+	return (_buffer);
 }
 
 int		const &User::getFd(void) const
