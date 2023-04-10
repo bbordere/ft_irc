@@ -1,7 +1,7 @@
 #include "User.hpp"
 
 User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName(""), _hostName(""), _fullName(""),
-					_password(""), _buffer(""), _fd(fd), _mode(0), _isAuth(false),
+					_password(""), _buffer(""), _fd(fd), _mode(0), _isAuth(false), _isLeaving(false),
 					_address(addr), _addressSize(sizeof(addr))
 {
 	_address.sin_family = AF_INET;
@@ -9,7 +9,7 @@ User::User(int const fd, struct sockaddr_in addr): _name(""), _nickName(""), _ho
 }
 
 User::User(std::string const &nick): _name(""), _nickName(nick), _hostName(""), _fullName(""),
-					_password(""), _buffer(""), _fd(-1), _mode(0), _isAuth(false),
+					_password(""), _buffer(""), _fd(-1), _mode(0), _isAuth(false), _isLeaving(false),
 					_address(), _addressSize()
 {
 	_address.sin_family = AF_INET;
@@ -59,6 +59,11 @@ void	User::setId(uint32_t const &id)
 void	User::setAuth(bool const state)
 {
 	_isAuth = state;
+}
+
+void	User::setLeaving(bool const state)
+{
+	_isLeaving = state;
 }
 
 void	User::setMode(User::MODES const mode)
@@ -116,6 +121,11 @@ bool	User::getAuthState(void) const
 	return (_isAuth);
 }
 
+bool	User::getLeavingState(void) const
+{
+	return (_isLeaving);
+}
+
 struct sockaddr *User::getAddress(void)
 {
 	// return (reinterpret_cast<struct sockaddr *>(&_address));
@@ -130,12 +140,8 @@ socklen_t		*User::getAddressSize(void)
 
 void	User::sendMsg(std::string const &msg) const
 {
-	// std::string msg3 = ":bastien!bastien@localhost PRIVMSG #test :sq\r\n";
-						//    :bastien!bastien@localhost :sqr
-	// std::string to_send = ":bastien!bastien@localhost PRIVMSG #test " + msg;
-	// std::string to_send = ":" + _name + "!" + _nickName + "@" + _hostName;
-	// std::cout << "SEND = " << to_send << '\n';
-	// to_send.append("\r\n"); 
+	if (_fd == -1)
+		return;
 	std::string to_send = msg + "\r\n";
 	std::cout << "Send to client N" <<  _id << ": " << to_send << '\n';
 	send(_fd, to_send.c_str(), to_send.length(), 0);

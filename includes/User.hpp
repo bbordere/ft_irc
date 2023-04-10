@@ -16,6 +16,7 @@ class User
 		int			_fd;
 		uint8_t		_mode;
 		bool		_isAuth;
+		bool		_isLeaving;
 
 		uint32_t			_id;
 		struct sockaddr_in	_address;
@@ -43,6 +44,7 @@ class User
 		void	setId(uint32_t const &id);
 
 		void	setAuth(bool const state);
+		void	setLeaving(bool const state);
 
 		void	setMode(User::MODES const mode);
 		void	unsetMode(User::MODES const mode);
@@ -56,6 +58,7 @@ class User
 		std::string &getBuffer(void);
 
 		bool	getAuthState(void) const;
+		bool	getLeavingState(void) const;
 
 		std::string const getAllInfos(void) const;
 

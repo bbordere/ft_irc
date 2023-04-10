@@ -270,7 +270,7 @@ void	Server::__userPrivMsg(vec_str_t const &msg, User const &user)
 	std::vector<User>::const_iterator target = getUserByNick(msg[1]);
 	if (target == _users.end())
 	{
-		std::cout << "Not found " << msg[1] << '\n';
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, user.getNickName(), msg[1],":No such nick"));
 		return;
 	}
 	(*target).sendMsg(user.getAllInfos() + " PRIVMSG " + (*target).getNickName() + " " + msg[2]);
@@ -302,6 +302,35 @@ void	Server::__privMsg(vec_str_t const &msg, User const &user)
 	//TO DO: Changer structure broadcast pour garder le vector
 	chan.broadcast(vecToStr(msg), user, _users);	
 }
+
+void	Server::__noticeCMD(vec_str_t const &msg, User const &user) const
+{
+	if (msg.size() != 3)
+		return;
+	std::string chanName = msg[1];
+	if (chanName.find('#') == std::string::npos)
+	{
+		std::vector<User>::const_iterator target = getUserByNick(msg[1]);
+		if (target == _users.end())
+			return;
+		(*target).sendMsg(user.getAllInfos() + " NOTICE " + (*target).getNickName() + " " + msg[2]);
+		return;
+	}
+
+	map_chan_t::const_iterator chanIt = _channels.find(chanName);
+	if (chanIt == _channels.end())
+		return;
+
+	Channel const &chan = (*chanIt).second;
+	if (chan.isInMode(BIT(Channel::NO_OUT)) && !chan.isInChan(user))
+		return;
+	if (chan.isInMode(BIT(Channel::MODERATED)) && !chan.isVoiced(user))
+		return;
+	std::cout << "Hash of msg: " << hash(vecToStr(msg)) << '\n';
+	//TO DO: Changer structure broadcast pour garder le vector
+	chan.broadcast(vecToStr(msg), user, _users);
+}
+
 
 void	Server::__updateChannels(void)
 {
@@ -389,14 +418,11 @@ void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 	}
 }
 
-void	Server::__sendPong(std::string const &msg, User const &user) const
+void	Server::__sendPong(vec_str_t const &msg, User const &user) const
 {
-	// if (!__checkMsgLen(msg, 2, user)) //TO DO CHANGER PONG POUR PRENDRE LE VECTOR
-	// 	return;
-	std::vector<std::string> sp = split(msg, " ");
-	std::string rpl = "PONG :";
-	rpl += user.getHostName();
-	user.sendMsg(rpl);
+	if (!__checkMsgLen(msg, 2, user))
+		return;
+	user.sendMsg("PONG :" + msg[1]);
 }
 
 void	Server::__sendWelcomeMsg(User const &user)
@@ -419,6 +445,14 @@ void	Server::__checkAuthClients(void)
 		{
 			_users[i].setAuth(true);
 			__sendWelcomeMsg(_users[i]);
+		}
+		else if (_users[i].getLeavingState())
+		{
+			std::cout << "User " << _users[i] << " disconected\n";
+			__leaveAllChan(_users[i]);
+			close(_pollingList[i + 1].fd);
+			_pollingList.erase(_pollingList.begin() + 1 + i);
+			_users.erase(_users.begin() + i);
 		}
 	}
 }
@@ -542,7 +576,6 @@ void	Server::__dccParsing(vec_str_t const &msg, User const &user)
 
 bool	Server::__checkMsgLen(vec_str_t const &msg, std::size_t const expected, User const &user) const
 {
-	std::cout << msg.size() << '\n';
 	if (msg.size() < expected)
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_NEEDMOREPARAMS, user.getNickName(), msg[0] + " :Not enough parameters"));
@@ -625,8 +658,9 @@ void	Server::__leaveAllChan(User const &user)
 	}
 }
 
-void	Server::__quitCMD(vec_str_t const &msg, User const &user)
+void	Server::__quitCMD(vec_str_t const &msg, User &user)
 {
+	user.setLeaving(true);
 	for (std::size_t i = 0; i < _users.size(); ++i)
 		_users[i].sendMsg(Server::formatMsg("QUIT " + msg[1], user));
 }
@@ -650,7 +684,7 @@ void	Server::__handlePackets(void)
 				if (std::string(buffer).find("\r\n") == std::string::npos)
 					continue;
 				std::vector<std::string> vecCmd = __parseCmd2(msg);
-				std::cout << vecCmd << '\n';
+				std::cout << "Input buffer: " << _users[i - 1].getBuffer().substr(0, _users[i - 1].getBuffer().size() - 2) << ", vec: " << vecCmd << '\n';
 				std::map<std::string, ptrFonction>::iterator it = _serverCmd.end();
 				if (vecCmd.size() >= 2)
 					it = _serverCmd.find(vecCmd[1]);
@@ -672,16 +706,18 @@ void	Server::__handlePackets(void)
 				
 				if (msg.find("JOIN") != std::string::npos)
 					__joinChannel(vecCmd, _users[i - 1]);
-				else if (msg.find("PART") != std::string::npos)
+				if (msg.find("PART") != std::string::npos)
 					__leaveChannel(vecCmd, _users[i - 1]);
 
-				else if (msg.find("DIR") != std::string::npos)
+				if (msg.find("DIR") != std::string::npos)
 					_users[0].sendMsg(&msg[4]);
 
-				else if (msg.find("PING") != std::string::npos)
-					__sendPong(msg, _users[i - 1]);
-				else if (msg.find("PRIVMSG") != std::string::npos)
+				if (msg.find("PING") != std::string::npos)
+					__sendPong(vecCmd, _users[i - 1]);
+				if (msg.find("PRIVMSG") != std::string::npos)
 					__privMsg(vecCmd, _users[i - 1]);
+				else if (msg.find("NOTICE") != std::string::npos)
+					__noticeCMD(vecCmd, _users[i - 1]);
 				else if (msg.find("MODE") != std::string::npos)
 					__changeChanMode(vecCmd, _users[i - 1]);
 				else if (msg.find("TOPIC") != std::string::npos)
@@ -698,8 +734,8 @@ void	Server::__handlePackets(void)
 			}
 		}
 	}
-	__updateChannels();
 	__checkAuthClients();
+	__updateChannels();
 }
 
 void	Server::__printDebug(void) const
@@ -767,6 +803,6 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
-		// __printDebug();
+		__printDebug();
 	}
 }

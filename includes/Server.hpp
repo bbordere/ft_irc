@@ -106,7 +106,7 @@ class Server
 		void	__kickCMD(vec_str_t const &msg, User const &user);
 
 		void	__leaveAllChan(User const &user);
-		void	__quitCMD(vec_str_t const &msg, User const &user);
+		void	__quitCMD(vec_str_t const &msg, User &user);
 
 		void	__joinExistingChan(vec_str_t const &name, User const &user);
 
@@ -115,7 +115,7 @@ class Server
 		
 		void	__printDebug(void) const;
 
-		void	__sendPong(std::string const &msg, User const &user) const;
+		void	__sendPong(vec_str_t const &msg, User const &user) const;
 
 		void	__checkAuthClients(void);
 
@@ -124,6 +124,7 @@ class Server
 
 		void	__usrModeHandling(vec_str_t const &msg, User &user);
 
+		void	__noticeCMD(vec_str_t const &msg, User const &user) const;
 
 		vec_str_t __parseCmd2(std::string str) const;
 
