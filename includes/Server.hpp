@@ -108,6 +108,10 @@ class Server
 		void	__leaveAllChan(User const &user);
 		void	__quitCMD(vec_str_t const &msg, User &user);
 
+		void	__operCMD(vec_str_t const &msg, User &user);
+		void	__dieCMD(vec_str_t const &msg, User &user);
+
+
 		void	__joinExistingChan(vec_str_t const &name, User const &user);
 
 		void	__inviteCMD(vec_str_t const &msg, User const &user);
@@ -148,6 +152,7 @@ class Server
 		Server(uint16_t const &port, std::string const &passwd);
 
 		std::vector<User>::const_iterator getUserByNick(std::string const &nick) const;
+		std::vector<User>::iterator getUserByNick(std::string const &nick);
 
 		~Server(void);
 		void	run(void);

@@ -379,6 +379,11 @@ std::vector<User>::const_iterator Server::getUserByNick(std::string const &nick)
 	return (std::find_if(_users.begin(), _users.end(), nickCompByNick(nick)));
 }
 
+std::vector<User>::iterator Server::getUserByNick(std::string const &nick)
+{
+	return (std::find_if(_users.begin(), _users.end(), nickCompByNick(nick)));
+}
+
 void	Server::__usrModeHandling(vec_str_t const &msg, User &user)
 {
 	if (msg[1] == user.getNickName() && !user.getMode() && msg[2] == "+i")
@@ -665,6 +670,35 @@ void	Server::__quitCMD(vec_str_t const &msg, User &user)
 		_users[i].sendMsg(Server::formatMsg("QUIT " + msg[1], user));
 }
 
+void	Server::__operCMD(vec_str_t const &msg, User &user)
+{
+	if (!__checkMsgLen(msg, 3, user))
+		return;
+	std::vector<User>::iterator target = getUserByNick(msg[1]);
+	if (target == _users.end())
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, user.getNickName(), msg[1],":No such nick"));
+		return;
+	}
+	if (msg[2] != PWD_OPERATOR)
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_PASSWDMISMATCH, "PASSWORD", msg[2],":invalid password"));
+		return;
+	}
+	for (std::size_t i = 0; i < _users.size(); ++i)
+	{
+		_users[i].sendMsg(msg[1] + " is the new operator of the server");
+	}
+	(*target).setMode(User::OPERATOR);
+}
+
+void	Server::__dieCMD(vec_str_t const &msg, User &user)
+{
+	(void) msg;
+	if (user.checkMode(BIT(User::OPERATOR)))
+		_isOn = false;
+}
+
 void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
@@ -693,9 +727,6 @@ void	Server::__handlePackets(void)
 					(*(it->second))(vecCmd); //exec cmd
 
 				LOG_SEND(i, msg);
-
-				if (msg.find("STOP") != std::string::npos)
-					_isOn = false;
 
 				if (msg.find("PASS") != std::string::npos)
 					__passCMD(vecCmd, _users[i - 1]);
@@ -730,6 +761,10 @@ void	Server::__handlePackets(void)
 					__kickCMD(vecCmd, _users[i - 1]);
 				else if (msg.find("QUIT") != std::string::npos)
 					__quitCMD(vecCmd, _users[i - 1]);
+				else if (msg.find("die") != std::string::npos)
+					__dieCMD(vecCmd, _users[i - 1]);
+				else if (msg.find("OPER") != std::string::npos)
+					__operCMD(vecCmd, _users[i - 1]);
 				_users[i - 1].getBuffer().clear();
 			}
 		}
