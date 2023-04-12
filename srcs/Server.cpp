@@ -699,6 +699,16 @@ void	Server::__dieCMD(vec_str_t const &msg, User &user)
 		_isOn = false;
 }
 
+void	Server::__awayCMD(vec_str_t const &msg, User &user) 
+{
+	user.unsetMode(User::AWAY);
+	user.sendMsg(Server::getRPLString(RPL::RPL_UNAWAY, "", user.getNickName(), "blabla"));
+	if (msg.size() > 1)
+	{
+		user._unawayMsg = msg[1];
+	}
+}
+
 void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
@@ -765,6 +775,8 @@ void	Server::__handlePackets(void)
 					__dieCMD(vecCmd, _users[i - 1]);
 				else if (msg.find("OPER") != std::string::npos)
 					__operCMD(vecCmd, _users[i - 1]);
+				else if (msg.find("AWAY") != std::string::npos)
+					__awayCMD(vecCmd, _users[i - 1]);
 				_users[i - 1].getBuffer().clear();
 			}
 		}

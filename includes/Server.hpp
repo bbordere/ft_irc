@@ -111,6 +111,7 @@ class Server
 		void	__operCMD(vec_str_t const &msg, User &user);
 		void	__dieCMD(vec_str_t const &msg, User &user);
 
+		void	__awayCMD(vec_str_t const &msg, User &user);
 
 		void	__joinExistingChan(vec_str_t const &name, User const &user);
 

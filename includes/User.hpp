@@ -13,6 +13,7 @@ class User
 		std::string _fullName;
 		std::string _password;
 		std::string _buffer;
+		std::string _unawayMsg;
 		int			_fd;
 		uint8_t		_mode;
 		bool		_isAuth;
