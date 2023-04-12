@@ -114,7 +114,8 @@ void	Server::__nickCMD(vec_str_t const &msg, User &user) const
 	}
 	else
 	{
-		user.sendMsg(user.getAllInfos() + " NICK " + *nickIt);
+		if (user.getAuthState())
+			user.sendMsg(user.getAllInfos() + " NICK " + *nickIt);
 		user.setNickName(*nickIt);
 	}
 }
@@ -193,6 +194,7 @@ void	Server::__disconnectUser(User const &user, std::size_t const &i)
 	std::cout << "User " << user << " disconected\n";
 	__leaveAllChan(user);
 	close(_pollingList[i].fd);
+	_users[i - 1].setFd(-1);
 	_pollingList.erase(_pollingList.begin() + i);
 	_users.erase(_users.begin() + (i - 1));
 }
@@ -224,11 +226,11 @@ bool	Server::__isChanRelated(std::string const &str)
 Server::map_chan_t::iterator Server::__searchChannel(std::string const &name, User const &user)
 {
 	std::map<std::string, Channel>::iterator it = _channels.find(name);
+	std::cout << name << '\n';
 	if (it == _channels.end())
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, name, "No such channel"));
 	return (it);
 }
-
 
 void	Server::__leaveChannel(vec_str_t const &msg, User const &user)
 {
@@ -434,6 +436,7 @@ void	Server::__sendWelcomeMsg(User const &user)
 	msg2.append(" Welcome to OurNetwork, ");
 	msg2.append(&user.getAllInfos()[1]);
 	user.sendMsg(msg2);
+	user.sendMsg(user.getAllInfos() + " NICK " + user.getNickName());
 	__motdCMD(vec_str_t(), user);
 }
 
@@ -451,6 +454,7 @@ void	Server::__checkAuthClients(void)
 			std::cout << "User " << _users[i] << " disconected\n";
 			__leaveAllChan(_users[i]);
 			close(_pollingList[i + 1].fd);
+			_users[i].setFd(-1);
 			_pollingList.erase(_pollingList.begin() + 1 + i);
 			_users.erase(_users.begin() + i);
 		}
@@ -471,18 +475,38 @@ void	Server::__userCMD(vec_str_t const &msg, User &user) const
 	user.setFullName(&msg.back()[1]);
 }
 
+size_t Server::__getUserIndex(std::string const &nick) const
+{
+	for (std::size_t i = 0; i < _users.size(); ++i)
+	{
+		if (_users[i].getNickName() == nick)
+			return (i);
+	}
+	return (0);
+}
 
-void	Server::__passCMD(vec_str_t const &msg, User &user) const
+
+void	Server::__passCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
 	vec_str_t::const_iterator passIt = ++(std::find(msg.begin(), msg.end(), "PASS"));
+
+	std::string const pass = numberToString(hash(*passIt));
+
+	if (pass != _password)
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_PASSWDMISMATCH, "PASS", ":Incorect Password !"));
+		user.sendMsg("ERROR :Incorect Password !");
+		user.setLeaving(true);
+	}
+
 	if (user.getAuthState())
 	{
 		user.sendMsg(":" + user.getHostName() + " 462 " + user.getNickName() + "  :You may not reregister.");
 		return;
 	}
-	user.setPassword(numberToString(hash(*passIt)));
+	user.setPassword(pass);
 }
 
 void	Server::__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user)
@@ -598,6 +622,11 @@ void	Server::__topicCMD(vec_str_t const &msg, User const &user)
 		user.sendMsg(Server::getRPLString(RPL::ERR_CHANOPRIVSNEEDED, chan.getName(), ":You don't have permision to do this !"));
 		return;
 	}
+	if (msg.size() == 2)
+	{
+		user.sendMsg(Server::getRPLString(RPL::RPL_TOPIC, user.getNickName(), chan.getName() +  " :" + chan.getTopic()));
+		return;
+	}
 	chan.setTopic(&msg[2][1]);
 	chan.broadcast(user.getAllInfos() + " TOPIC " + msg[1] + " " + msg[2], _users);
 }
@@ -665,6 +694,33 @@ void	Server::__quitCMD(vec_str_t const &msg, User &user)
 		_users[i].sendMsg(Server::formatMsg("QUIT " + msg[1], user));
 }
 
+void	Server::__killCMD(vec_str_t const &msg, User &user)
+{
+	if (!__checkMsgLen(msg, 3, user))
+		return;
+	std::cout << "TIIIIR" << '\n';
+	// if (!user.checkMode(BIT(User::OPERATOR)))
+	// {
+	// 	user.sendMsg(Server::getRPLString(RPL::ERR_NOPRIVILEGES, user.getNickName(), ":You don't have permision to do this !"));
+	// 	return;
+	// }
+	vec_usr_t::iterator target = std::find_if(_users.begin(), _users.end(), nickCompByNick(msg[1]));
+	if (target == _users.end())
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, user.getNickName(), msg[1],":No such nick"));
+		return;
+	}
+	(*target).setLeaving(true);
+	(*target).sendMsg(user.getAllInfos() + " KILL " + (*target).getNickName() + " " + msg[2]);
+	for (std::size_t i = 0; i < _users.size(); ++i)
+	{
+		if (_users[i].getNickName() == (*target).getNickName())
+			continue;
+		_users[i].sendMsg(Server::getRPLString(RPL::RPL_KILLDONE, user.getNickName(), (*target).getNickName(), ":was killed by " + user.getNickName()));
+	}
+}
+
+
 void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
@@ -730,6 +786,8 @@ void	Server::__handlePackets(void)
 					__kickCMD(vecCmd, _users[i - 1]);
 				else if (msg.find("QUIT") != std::string::npos)
 					__quitCMD(vecCmd, _users[i - 1]);
+				else if (msg.find("kill") != std::string::npos)
+					__killCMD(vecCmd, _users[i - 1]);
 				_users[i - 1].getBuffer().clear();
 			}
 		}
@@ -803,6 +861,6 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
-		__printDebug();
+		// __printDebug();
 	}
 }

@@ -144,7 +144,7 @@ void	User::sendMsg(std::string const &msg) const
 		return;
 	std::string to_send = msg + "\r\n";
 	std::cout << "Send to client N" <<  _id << ": " << to_send << '\n';
-	send(_fd, to_send.c_str(), to_send.length(), 0);
+	send(_fd, to_send.c_str(), to_send.length(), MSG_NOSIGNAL);
 }
 
 void	User::updateMode(std::string const &str)
