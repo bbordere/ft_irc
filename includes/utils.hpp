@@ -2,6 +2,7 @@
 #define UTILS_HPP
 
 #include <iostream>
+#include <set>
 
 #define SET_N_BIT(x, n) (x |= 1 << n)
 #define CLEAR_N_BIT(x, n) (x &= ~(1 << n))
@@ -13,6 +14,25 @@ template <class T, class U>
 std::ostream &operator<<(std::ostream &stream, std::pair<T, U> const &pair)
 {
 	stream << '(' << pair.first << ", " << pair.second << ')';
+	return (stream);
+}
+
+template <class T, class Compare, class Allocator>
+std::ostream &operator<<(std::ostream &stream, std::set<T, Compare, Allocator> const &set)
+{
+	if (set.empty())
+	{
+		stream << "{}";
+		return (stream);
+	}
+	stream << '{';
+	typename std::set<T, Compare, Allocator>::const_iterator val = set.begin();
+	for (std::size_t i = 0; i < set.size() - 1; i++)
+	{
+		stream << *val << ", ";
+		++val;
+	}
+	stream << *val << '}';
 	return (stream);
 }
 

@@ -228,7 +228,7 @@ Server::map_chan_t::iterator Server::__searchChannel(std::string const &name, Us
 	std::map<std::string, Channel>::iterator it = _channels.find(name);
 	std::cout << name << '\n';
 	if (it == _channels.end())
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, name, "No such channel"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + name, ":No such channel"));
 	return (it);
 }
 
@@ -393,31 +393,27 @@ void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 		return;
 	if (!__isChanExist(msg[1]))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, msg[1], ":No such channel"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
 		return;	
 	}
 	Channel &chan = _channels.at(msg[1]);
-	switch (msg.size())
+
+
+	if (msg.size() == 2)
 	{
-		case 2:
-		{
-			user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), msg[1], chan.getModeString()));
-			break;
-		}
-		case 3:
-		{
-			chan.changeMode(msg, user, _users);
-			break;
-		}
-		case 4:
-		{
-			if (std::isalpha(msg[3][0]))
-				chan.changeUserMode(msg, user, _users);
-			else
-				chan.changeMode(msg, user, _users);
-			break;
-		}
+		user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), msg[1], chan.getModeString()));
+			return;
 	}
+	if (msg.size() == 3)
+	{
+		chan.changeMode(msg, user, _users);
+		return;
+	}
+
+	if (msg[2].find("+o") != std::string::npos || msg[2].find("-o") != std::string::npos)
+		chan.changeUserMode(msg, user, _users);
+	else
+		chan.changeMode(msg, user, _users);
 }
 
 void	Server::__sendPong(vec_str_t const &msg, User const &user) const
@@ -611,6 +607,7 @@ bool	Server::__checkMsgLen(vec_str_t const &msg, std::size_t const expected, Use
 
 void	Server::__topicCMD(vec_str_t const &msg, User const &user)
 {
+	// std::cout << (int)msg[2][0] << '\n';
 	if (!__checkMsgLen(msg, 2, user))
 		return;
 	map_chan_t::iterator chanIt = __searchChannel(msg[1], user);
@@ -624,7 +621,10 @@ void	Server::__topicCMD(vec_str_t const &msg, User const &user)
 	}
 	if (msg.size() == 2)
 	{
-		user.sendMsg(Server::getRPLString(RPL::RPL_TOPIC, user.getNickName(), chan.getName() +  " :" + chan.getTopic()));
+		if (chan.getTopic().empty())
+			user.sendMsg(Server::getRPLString(RPL::RPL_NOTOPIC, user.getNickName(), chan.getName() +  " :No topic is set"));
+		else
+			user.sendMsg(Server::getRPLString(RPL::RPL_TOPIC, user.getNickName(), chan.getName() +  " :" + chan.getTopic()));
 		return;
 	}
 	chan.setTopic(&msg[2][1]);
@@ -652,7 +652,7 @@ void	Server::__kickCMD(vec_str_t const &msg, User const &user)
 		return;
 	if (!__isChanExist(msg[1]))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, msg[1], ":No such channel"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
 		return;	
 	}
 	Channel &chan = _channels.at(msg[1]);
@@ -748,7 +748,7 @@ void	Server::__handlePackets(void)
 				if (it != _serverCmd.end()) // A changer notamment pour la partie auth
 					(*(it->second))(vecCmd); //exec cmd
 
-				LOG_SEND(i, msg);
+				// LOG_SEND(i, msg);
 
 				if (msg.find("STOP") != std::string::npos)
 					_isOn = false;
@@ -798,7 +798,7 @@ void	Server::__handlePackets(void)
 
 void	Server::__printDebug(void) const
 {
-	std::cout << "\033[2J" << std::flush;
+	// std::cout << "\033[2J" << std::flush;
 	std::cout << "------CHANNEL------" << '\n';
 	std::cout << _channels.size() << " ACTIVE: " << '\n';
 	for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it)
@@ -861,6 +861,6 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
-		// __printDebug();
+		__printDebug();
 	}
 }

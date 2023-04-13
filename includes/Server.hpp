@@ -87,7 +87,10 @@ class Server
 
 		void	__joinChannel(vec_str_t const &msg, User const &user);
 		void	__disconnectUser(User const &user, std::size_t const &i);
+		void	__disconnectUser(User &user);
 		void	__leaveChannel(vec_str_t const &name, User const &user);
+
+		size_t __getUserIndex(std::string const &nick) const;
 
 		void	__privMsg(vec_str_t const &msg, User const &user);
 		void	__userPrivMsg(vec_str_t const &msg, User const &user);
@@ -101,7 +104,9 @@ class Server
 		bool	__isChanExist(std::string const &name) const;
 
 		void	__userCMD(vec_str_t const &msg, User &user) const;
-		void	__passCMD(vec_str_t const &msg, User &user) const;
+		void	__passCMD(vec_str_t const &msg, User &user);
+
+		void	__killCMD(vec_str_t const &msg, User &user);
 
 		void	__kickCMD(vec_str_t const &msg, User const &user);
 
