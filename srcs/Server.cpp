@@ -698,7 +698,6 @@ void	Server::__killCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 3, user))
 		return;
-	std::cout << "TIIIIR" << '\n';
 	// if (!user.checkMode(BIT(User::OPERATOR)))
 	// {
 	// 	user.sendMsg(Server::getRPLString(RPL::ERR_NOPRIVILEGES, user.getNickName(), ":You don't have permision to do this !"));
@@ -720,9 +719,28 @@ void	Server::__killCMD(vec_str_t const &msg, User &user)
 	}
 }
 
+std::size_t	Server::__containsCMD(vec_str_t &msg) const
+{
+	std::string const cmdHandled[] = {"PASS", "USER", "NICK", "JOIN", "PART", "PING", "PRIVMSG", 
+									"NOTICE", "MODE", "TOPIC", "motd", "INVITE", "KICK", "QUIT",
+									"kill"};
+	for (std::size_t i = 1; i < msg.size(); ++i)
+	{
+		std::string const *cmd = std::find(cmdHandled, cmdHandled + 15, msg[i]);
+		if (cmd != cmdHandled + 15)
+		{
+			vec_str_t::iterator cmdPos = std::find(++msg.begin(), msg.end(), *cmd);
+			msg.erase(msg.begin(), cmdPos);
+			return (6);
+		}
+	}
+	return (std::string::npos);
+}
+
 
 void	Server::__handlePackets(void)
 {
+	std::vector<std::string> vecCmd;
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
 	{
 		if (_pollingList[i].revents & POLLIN)
@@ -730,64 +748,74 @@ void	Server::__handlePackets(void)
 			char buffer[1024] = {};
 			ssize_t bytes = recv(_pollingList[i].fd, &buffer, sizeof(buffer), 0);
 			if (bytes < 0)
-				std::cerr << "recv() failed\n";
+				std::cerr << "recv() failed\n"; //Throw ??
 			else if (!bytes)
 				__disconnectUser(_users[i - 1], i);
 			else
 			{
 				_users[i - 1].getBuffer() += buffer;
 				std::string msg(_users[i - 1].getBuffer());
-				if (std::string(buffer).find("\r\n") == std::string::npos)
+				if (msg.find("\r\n") == std::string::npos)
 					continue;
-				std::vector<std::string> vecCmd = __parseCmd2(msg);
+				vecCmd = __parseCmd2(msg);
+				
 				std::cout << "Input buffer: " << _users[i - 1].getBuffer().substr(0, _users[i - 1].getBuffer().size() - 2) << ", vec: " << vecCmd << '\n';
+				
 				std::map<std::string, ptrFonction>::iterator it = _serverCmd.end();
 				if (vecCmd.size() >= 2)
 					it = _serverCmd.find(vecCmd[1]);
 
-				if (it != _serverCmd.end()) // A changer notamment pour la partie auth
+				if (it != _serverCmd.end()) // Changer position pour rentrer dans la boucle
 					(*(it->second))(vecCmd); //exec cmd
 
 				// LOG_SEND(i, msg);
 
-				if (msg.find("STOP") != std::string::npos)
-					_isOn = false;
+				std::size_t index = 0;
+				while (index != std::string::npos)
+				{
+					if (msg.find("STOP") != std::string::npos)
+						_isOn = false;
 
-				if (msg.find("PASS") != std::string::npos)
-					__passCMD(vecCmd, _users[i - 1]);
-				if (msg.find("USER") != std::string::npos)
-					__userCMD(vecCmd, _users[i - 1]);
-				if (msg.find("NICK") != std::string::npos)
-					__nickCMD(vecCmd, _users[i - 1]);
-				
-				if (msg.find("JOIN") != std::string::npos)
-					__joinChannel(vecCmd, _users[i - 1]);
-				if (msg.find("PART") != std::string::npos)
-					__leaveChannel(vecCmd, _users[i - 1]);
+					if (msg.find("PASS") != std::string::npos)
+						__passCMD(vecCmd, _users[i - 1]);
+					else if (msg.find("USER") != std::string::npos)
+						__userCMD(vecCmd, _users[i - 1]);
+					else if (msg.find("NICK") != std::string::npos)
+						__nickCMD(vecCmd, _users[i - 1]);
+					if (_users[i - 1].getAuthState())
+					{
+						if (msg.find("JOIN") != std::string::npos)
+							__joinChannel(vecCmd, _users[i - 1]);
+						else if (msg.find("PART") != std::string::npos)
+							__leaveChannel(vecCmd, _users[i - 1]);
 
-				if (msg.find("DIR") != std::string::npos)
-					_users[0].sendMsg(&msg[4]);
+						else if (msg.find("DIR") != std::string::npos)
+							_users[0].sendMsg(&msg[4]);
 
-				if (msg.find("PING") != std::string::npos)
-					__sendPong(vecCmd, _users[i - 1]);
-				if (msg.find("PRIVMSG") != std::string::npos)
-					__privMsg(vecCmd, _users[i - 1]);
-				else if (msg.find("NOTICE") != std::string::npos)
-					__noticeCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("MODE") != std::string::npos)
-					__changeChanMode(vecCmd, _users[i - 1]);
-				else if (msg.find("TOPIC") != std::string::npos)
-					__topicCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("motd") != std::string::npos)
-					__motdCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("INVITE") != std::string::npos)
-					__inviteCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("KICK") != std::string::npos)
-					__kickCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("QUIT") != std::string::npos)
-					__quitCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("kill") != std::string::npos)
-					__killCMD(vecCmd, _users[i - 1]);
+						else if (msg.find("PING") != std::string::npos)
+							__sendPong(vecCmd, _users[i - 1]);
+						else if (msg.find("PRIVMSG") != std::string::npos)
+							__privMsg(vecCmd, _users[i - 1]);
+						else if (msg.find("NOTICE") != std::string::npos)
+							__noticeCMD(vecCmd, _users[i - 1]);
+						else if (msg.find("MODE") != std::string::npos)
+							__changeChanMode(vecCmd, _users[i - 1]);
+						else if (msg.find("TOPIC") != std::string::npos)
+							__topicCMD(vecCmd, _users[i - 1]);
+						else if (msg.find("motd") != std::string::npos)
+							__motdCMD(vecCmd, _users[i - 1]);
+						else if (msg.find("INVITE") != std::string::npos)
+							__inviteCMD(vecCmd, _users[i - 1]);
+						else if (msg.find("KICK") != std::string::npos)
+							__kickCMD(vecCmd, _users[i - 1]);
+						else if (msg.find("QUIT") != std::string::npos)
+							__quitCMD(vecCmd, _users[i - 1]);
+						else if (msg.find("kill") != std::string::npos)
+							__killCMD(vecCmd, _users[i - 1]);
+					}
+					index = __containsCMD(vecCmd);
+					msg = vecCmd[0];
+				}
 				_users[i - 1].getBuffer().clear();
 			}
 		}
@@ -861,6 +889,6 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
-		__printDebug();
+		// __printDebug();
 	}
 }

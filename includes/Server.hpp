@@ -136,6 +136,8 @@ class Server
 		static bool	__isMultiArg(std::string const &str);
 		static bool	__isChanRelated(std::string const &str);
 
+		std::size_t	__containsCMD(vec_str_t &msg) const;
+
 		void	__dccParsing(vec_str_t const &msg, User const &user);
 		
 		void	__topicCMD(vec_str_t const &msg, User const &user);
