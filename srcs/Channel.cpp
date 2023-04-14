@@ -119,6 +119,8 @@ void	Channel::__modesParamsHandling(vec_str_t const &msg, std::string const &que
 
 bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> const &users)
 {
+	if (msg[2] == "b") // JSP CE QUE VEUX IRSSI
+		return (true);
 	if (!checkModifCondition(user))
 		return (false);
 	std::string const possibilities = "imnptkl";

@@ -4,7 +4,7 @@ CXXFLAGS = -g3 -std=c++98 -Wall -Wextra -Werror -MMD -I includes
 # CXXFLAGS = -g3  -std=c++98 -MMD -I includes
 
 # FILES = srcs/protoServerSide.cpp
-FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp srcs/utils.cpp srcs/Channel.cpp srcs/command.cpp
+FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp srcs/utils.cpp srcs/Channel.cpp
 
 OBJS = $(FILES:.cpp=.o)
 
