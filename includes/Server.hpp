@@ -62,7 +62,7 @@ class Server
 		typedef std::vector<User> vec_usr_t;
 
 	private:
-		typedef void* (*ptrFonction)(std::vector<std::string>);
+		typedef void (Server::*ptrFonction)(vec_str_t const &msg, User &user);
 		std::vector<struct pollfd>	_pollingList;
 
 		int	_fd;
@@ -76,34 +76,39 @@ class Server
 		std::set<User, userComp>		_bannedUsers;
 		bool		_isOn;
 		std::string	const _password;
+		void	__initCmd(void);
 
 		void	__handleConnection(void);
 		void	__handlePackets(void);
 		void	__authUser(User &user);
-		void	__sendWelcomeMsg(User const &user);
-		std::map<std::string, ptrFonction>	__initCmd();
+		void	__sendWelcomeMsg(User &user);
 		std::vector<std::string>			__parseCmd(std::string str);
 		bool	__checkMsgLen(vec_str_t const &msg, std::size_t const expected, User const &user) const;
 
-		void	__joinChannel(vec_str_t const &msg, User const &user);
+		void	__joinChannel(vec_str_t const &msg, User &user);
 		void	__disconnectUser(User const &user, std::size_t const &i);
-		void	__leaveChannel(vec_str_t const &name, User const &user);
+		void	__disconnectUser(User &user);
+		void	__leaveChannel(vec_str_t const &name, User &user);
 
-		void	__privMsg(vec_str_t const &msg, User const &user);
-		void	__userPrivMsg(vec_str_t const &msg, User const &user);
+		size_t __getUserIndex(std::string const &nick) const;
+
+		void	__privMsg(vec_str_t const &msg, User &user);
+		void	__userPrivMsg(vec_str_t const &msg, User &user);
 
 		void	__updateChannels(void);
 		void	__changeChanMode(vec_str_t const &msg, User &user);
 
-		void	__nickCMD(vec_str_t const &msg, User &user) const;
+		void	__nickCMD(vec_str_t const &msg, User &user);
 		bool	__checkNickName(std::string const &nick) const;
 
 		bool	__isChanExist(std::string const &name) const;
 
-		void	__userCMD(vec_str_t const &msg, User &user) const;
-		void	__passCMD(vec_str_t const &msg, User &user) const;
+		void	__userCMD(vec_str_t const &msg, User &user);
+		void	__passCMD(vec_str_t const &msg, User &user);
 
-		void	__kickCMD(vec_str_t const &msg, User const &user);
+		void	__killCMD(vec_str_t const &msg, User &user);
+
+		void	__kickCMD(vec_str_t const &msg, User &user);
 
 		void	__leaveAllChan(User const &user);
 		void	__quitCMD(vec_str_t const &msg, User &user);
@@ -115,12 +120,12 @@ class Server
 
 		void	__joinExistingChan(vec_str_t const &name, User const &user);
 
-		void	__inviteCMD(vec_str_t const &msg, User const &user);
+		void	__inviteCMD(vec_str_t const &msg, User &user);
 		void	__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user);
 		
 		void	__printDebug(void) const;
 
-		void	__sendPong(vec_str_t const &msg, User const &user) const;
+		void	__sendPong(vec_str_t const &msg, User &user);
 
 		void	__checkAuthClients(void);
 
@@ -129,18 +134,20 @@ class Server
 
 		void	__usrModeHandling(vec_str_t const &msg, User &user);
 
-		void	__noticeCMD(vec_str_t const &msg, User const &user) const;
+		void	__noticeCMD(vec_str_t const &msg, User &user);
 
 		vec_str_t __parseCmd2(std::string str) const;
 
 		static bool	__isMultiArg(std::string const &str);
 		static bool	__isChanRelated(std::string const &str);
 
+		bool	__containsCMD(vec_str_t &msg) const;
+
 		void	__dccParsing(vec_str_t const &msg, User const &user);
 		
-		void	__topicCMD(vec_str_t const &msg, User const &user);
+		void	__topicCMD(vec_str_t const &msg, User &user);
 
-		void	__motdCMD(vec_str_t const &msg, User const &user);
+		void	__motdCMD(vec_str_t const &msg, User &user);
 
 		map_chan_t::iterator __searchChannel(std::string const &name, User const &user);
 

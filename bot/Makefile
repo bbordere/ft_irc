@@ -1,16 +1,14 @@
 CXX = clang++
 
 CXXFLAGS = -g3 -std=c++98 -Wall -Wextra -Werror -MMD -I includes
-# CXXFLAGS = -g3  -std=c++98 -MMD -I includes
 
-# FILES = srcs/protoServerSide.cpp
-FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp srcs/utils.cpp srcs/Channel.cpp
+FILES = bot.cpp
 
 OBJS = $(FILES:.cpp=.o)
 
 DEPS = $(FILES:.cpp=.d)
 
-NAME = server
+NAME = beBot
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -29,10 +27,6 @@ clean:
 
 fclean: clean
 	rm -f $(NAME)
-
-run: all
-	@echo SERVER STARTED !
-	./server
 
 re: fclean all
 

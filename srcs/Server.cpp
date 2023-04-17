@@ -1,6 +1,3 @@
-#ifndef __SERVER_H__
-#define __SERVER_H__
-
 #include "Server.hpp"
 
 ServerFailureException::ServerFailureException(char const *msg): _msg(msg) {}
@@ -35,7 +32,7 @@ Server::Server(uint16_t const &port, std::string const &passwd): _password(numbe
 	_pollingList[0].fd = _fd;
 	_pollingList[0].events = POLLIN;
 	_isOn = true;
-	_serverCmd = __initCmd();
+	__initCmd();
 }
 
 Server::~Server(void)
@@ -94,7 +91,7 @@ std::string Server::__getChanUsersList(Channel const &chan) const
 	return (res);
 }
 
-void	Server::__nickCMD(vec_str_t const &msg, User &user) const
+void	Server::__nickCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
@@ -117,7 +114,8 @@ void	Server::__nickCMD(vec_str_t const &msg, User &user) const
 	}
 	else
 	{
-		user.sendMsg(user.getAllInfos() + " NICK " + *nickIt);
+		if (user.getAuthState())
+			user.sendMsg(user.getAllInfos() + " NICK " + *nickIt);
 		user.setNickName(*nickIt);
 	}
 }
@@ -175,7 +173,7 @@ void	Server::__joinExistingChan(vec_str_t const &msg, User const &user)
 	chan.announceJoin(user, _users, __getChanUsersList(chan));
 }
 
-void	Server::__joinChannel(vec_str_t const &msg, User const &user)
+void	Server::__joinChannel(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
@@ -196,6 +194,7 @@ void	Server::__disconnectUser(User const &user, std::size_t const &i)
 	std::cout << "User " << user << " disconected\n";
 	__leaveAllChan(user);
 	close(_pollingList[i].fd);
+	_users[i - 1].setFd(-1);
 	_pollingList.erase(_pollingList.begin() + i);
 	_users.erase(_users.begin() + (i - 1));
 }
@@ -227,13 +226,13 @@ bool	Server::__isChanRelated(std::string const &str)
 Server::map_chan_t::iterator Server::__searchChannel(std::string const &name, User const &user)
 {
 	std::map<std::string, Channel>::iterator it = _channels.find(name);
+	std::cout << name << '\n';
 	if (it == _channels.end())
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, name, "No such channel"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + name, ":No such channel"));
 	return (it);
 }
 
-
-void	Server::__leaveChannel(vec_str_t const &msg, User const &user)
+void	Server::__leaveChannel(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
@@ -262,7 +261,7 @@ void	Server::__leaveChannel(vec_str_t const &msg, User const &user)
 		_channels.erase(name);
 }
 
-void	Server::__userPrivMsg(vec_str_t const &msg, User const &user)
+void	Server::__userPrivMsg(vec_str_t const &msg, User &user)
 {
 	if (msg[2].find("DCC") != std::string::npos)
 	{
@@ -277,11 +276,11 @@ void	Server::__userPrivMsg(vec_str_t const &msg, User const &user)
 		return;
 	}
 	if (!(*target).checkMode(BIT(User::AWAY)))
-		user.
+		user.sendMsg((*target).getUnawayMsg());
 	(*target).sendMsg(user.getAllInfos() + " PRIVMSG " + (*target).getNickName() + " " + msg[2]);
 }
 
-void	Server::__privMsg(vec_str_t const &msg, User const &user)
+void	Server::__privMsg(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 3, user))
 		return;
@@ -308,7 +307,7 @@ void	Server::__privMsg(vec_str_t const &msg, User const &user)
 	chan.broadcast(vecToStr(msg), user, _users);	
 }
 
-void	Server::__noticeCMD(vec_str_t const &msg, User const &user) const
+void	Server::__noticeCMD(vec_str_t const &msg, User &user)
 {
 	if (msg.size() != 3)
 		return;
@@ -401,41 +400,37 @@ void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 		return;
 	if (!__isChanExist(msg[1]))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, msg[1], ":No such channel"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
 		return;	
 	}
 	Channel &chan = _channels.at(msg[1]);
-	switch (msg.size())
+
+
+	if (msg.size() == 2)
 	{
-		case 2:
-		{
-			user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), msg[1], chan.getModeString()));
-			break;
-		}
-		case 3:
-		{
-			chan.changeMode(msg, user, _users);
-			break;
-		}
-		case 4:
-		{
-			if (std::isalpha(msg[3][0]))
-				chan.changeUserMode(msg, user, _users);
-			else
-				chan.changeMode(msg, user, _users);
-			break;
-		}
+		user.sendMsg(Server::getRPLString(RPL::RPL_CHANNELMODEIS, user.getNickName(), msg[1], chan.getModeString()));
+			return;
 	}
+	if (msg.size() == 3)
+	{
+		chan.changeMode(msg, user, _users);
+		return;
+	}
+
+	if (msg[2].find("+o") != std::string::npos || msg[2].find("-o") != std::string::npos)
+		chan.changeUserMode(msg, user, _users);
+	else
+		chan.changeMode(msg, user, _users);
 }
 
-void	Server::__sendPong(vec_str_t const &msg, User const &user) const
+void	Server::__sendPong(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
 	user.sendMsg("PONG :" + msg[1]);
 }
 
-void	Server::__sendWelcomeMsg(User const &user)
+void	Server::__sendWelcomeMsg(User &user)
 {
 	std::string msg2 = "";
 	msg2.append(std::string("00") + numberToString(RPL::WELCOME));
@@ -444,6 +439,7 @@ void	Server::__sendWelcomeMsg(User const &user)
 	msg2.append(" Welcome to OurNetwork, ");
 	msg2.append(&user.getAllInfos()[1]);
 	user.sendMsg(msg2);
+	user.sendMsg(user.getAllInfos() + " NICK " + user.getNickName());
 	__motdCMD(vec_str_t(), user);
 }
 
@@ -461,13 +457,14 @@ void	Server::__checkAuthClients(void)
 			std::cout << "User " << _users[i] << " disconected\n";
 			__leaveAllChan(_users[i]);
 			close(_pollingList[i + 1].fd);
+			_users[i].setFd(-1);
 			_pollingList.erase(_pollingList.begin() + 1 + i);
 			_users.erase(_users.begin() + i);
 		}
 	}
 }
 
-void	Server::__userCMD(vec_str_t const &msg, User &user) const
+void	Server::__userCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 5, user))
 		return;
@@ -481,18 +478,38 @@ void	Server::__userCMD(vec_str_t const &msg, User &user) const
 	user.setFullName(&msg.back()[1]);
 }
 
+size_t Server::__getUserIndex(std::string const &nick) const
+{
+	for (std::size_t i = 0; i < _users.size(); ++i)
+	{
+		if (_users[i].getNickName() == nick)
+			return (i);
+	}
+	return (0);
+}
 
-void	Server::__passCMD(vec_str_t const &msg, User &user) const
+
+void	Server::__passCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
 	vec_str_t::const_iterator passIt = ++(std::find(msg.begin(), msg.end(), "PASS"));
+
+	std::string const pass = numberToString(hash(*passIt));
+
+	if (pass != _password)
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_PASSWDMISMATCH, "PASS", ":Incorect Password !"));
+		user.sendMsg("ERROR :Incorect Password !");
+		user.setLeaving(true);
+	}
+
 	if (user.getAuthState())
 	{
 		user.sendMsg(":" + user.getHostName() + " 462 " + user.getNickName() + "  :You may not reregister.");
 		return;
 	}
-	user.setPassword(numberToString(hash(*passIt)));
+	user.setPassword(pass);
 }
 
 void	Server::__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user)
@@ -527,7 +544,7 @@ void	Server::__inviteExistingChan(std::string const &chanName, std::string const
 	(*it).sendMsg(Server::formatMsg("INVITE " + user.getNickName() + " " + chanName, user));
 }
 
-void	Server::__inviteCMD(vec_str_t const &msg, User const &user)
+void	Server::__inviteCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 3, user))
 		return;
@@ -595,8 +612,9 @@ bool	Server::__checkMsgLen(vec_str_t const &msg, std::size_t const expected, Use
 }
 
 
-void	Server::__topicCMD(vec_str_t const &msg, User const &user)
+void	Server::__topicCMD(vec_str_t const &msg, User &user)
 {
+	// std::cout << (int)msg[2][0] << '\n';
 	if (!__checkMsgLen(msg, 2, user))
 		return;
 	map_chan_t::iterator chanIt = __searchChannel(msg[1], user);
@@ -608,11 +626,19 @@ void	Server::__topicCMD(vec_str_t const &msg, User const &user)
 		user.sendMsg(Server::getRPLString(RPL::ERR_CHANOPRIVSNEEDED, chan.getName(), ":You don't have permision to do this !"));
 		return;
 	}
+	if (msg.size() == 2)
+	{
+		if (chan.getTopic().empty())
+			user.sendMsg(Server::getRPLString(RPL::RPL_NOTOPIC, user.getNickName(), chan.getName() +  " :No topic is set"));
+		else
+			user.sendMsg(Server::getRPLString(RPL::RPL_TOPIC, user.getNickName(), chan.getName() +  " :" + chan.getTopic()));
+		return;
+	}
 	chan.setTopic(&msg[2][1]);
 	chan.broadcast(user.getAllInfos() + " TOPIC " + msg[1] + " " + msg[2], _users);
 }
 
-void	Server::__motdCMD(vec_str_t const &msg, User const &user)
+void	Server::__motdCMD(vec_str_t const &msg, User &user)
 {
 	(void)msg;
 	user.sendMsg("375 " + user.getNickName() + " - Message of the day -");
@@ -627,13 +653,13 @@ void	Server::__motdCMD(vec_str_t const &msg, User const &user)
 	user.sendMsg("376 " + user.getNickName() + " End of the Message the day");
 }
 
-void	Server::__kickCMD(vec_str_t const &msg, User const &user)
+void	Server::__kickCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 4, user))
 		return;
 	if (!__isChanExist(msg[1]))
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, msg[1], ":No such channel"));
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
 		return;	
 	}
 	Channel &chan = _channels.at(msg[1]);
@@ -680,11 +706,6 @@ void	Server::__operCMD(vec_str_t const &msg, User &user)
 	if (!__checkMsgLen(msg, 3, user))
 		return;
 	std::vector<User>::iterator target = getUserByNick(msg[1]);
-	if (target == _users.end())
-	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, user.getNickName(), msg[1],":No such nick"));
-		return;
-	}
 	if (msg[2] != PWD_OPERATOR)
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_PASSWDMISMATCH, "PASSWORD", msg[2],":invalid password"));
@@ -695,6 +716,31 @@ void	Server::__operCMD(vec_str_t const &msg, User &user)
 		_users[i].sendMsg(msg[1] + " is the new operator of the server");
 	}
 	(*target).setMode(User::OPERATOR);
+}
+
+void	Server::__killCMD(vec_str_t const &msg, User &user)
+{
+	if (!__checkMsgLen(msg, 3, user))
+		return;
+	// if (!user.checkMode(BIT(User::OPERATOR)))
+	// {
+	// 	user.sendMsg(Server::getRPLString(RPL::ERR_NOPRIVILEGES, user.getNickName(), ":You don't have permision to do this !"));
+	// 	return;
+	// }
+	vec_usr_t::iterator target = std::find_if(_users.begin(), _users.end(), nickCompByNick(msg[1]));
+	if (target == _users.end())
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, user.getNickName(), msg[1],":No such nick"));
+		return;
+	}
+	(*target).setLeaving(true);
+	(*target).sendMsg(user.getAllInfos() + " KILL " + (*target).getNickName() + " " + msg[2]);
+	for (std::size_t i = 0; i < _users.size(); ++i)
+	{
+		if (_users[i].getNickName() == (*target).getNickName())
+			continue;
+		_users[i].sendMsg(Server::getRPLString(RPL::RPL_KILLDONE, user.getNickName(), (*target).getNickName(), ":was killed by " + user.getNickName()));
+	}
 }
 
 void	Server::__dieCMD(vec_str_t const &msg, User &user)
@@ -712,83 +758,61 @@ void	Server::__awayCMD(vec_str_t const &msg, User &user)
 		user.setUnawayMsg(msg[1]);
 	else
 		user.setUnawayMsg("");
-
 	user.sendMsg("Unaway mesage is: " + user.getUnawayMsg());
 }
+
+bool	Server::__containsCMD(vec_str_t &msg) const
+{
+	std::string const cmdHandled[] = {"CAP", "PASS", "USER", "NICK", "JOIN", "PART", "PING", "PRIVMSG", 
+									"NOTICE", "MODE", "TOPIC", "motd", "INVITE", "KICK", "QUIT",
+									"kill"};
+	for (std::size_t i = 1; i < msg.size(); ++i)
+	{
+		std::string const *cmd = std::find(cmdHandled, cmdHandled + 15, msg[i]);
+		if (cmd != cmdHandled + 15)
+		{
+			vec_str_t::iterator cmdPos = std::find(++msg.begin(), msg.end(), *cmd);
+			msg.erase(msg.begin(), cmdPos);
+			return (true);
+		}
+	}
+	msg.clear();
+	return (false);
+}
+
+				// if (_users[i - 1].checkMode(BIT(User::AWAY)) 
+				// 	&& !msg.find("PING") && !msg.find("PONG"))
+				// 	_users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
 
 void	Server::__handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
 	{
+		std::vector<std::string> vecCmd;
 		if (_pollingList[i].revents & POLLIN)
 		{
 			char buffer[1024] = {};
 			ssize_t bytes = recv(_pollingList[i].fd, &buffer, sizeof(buffer), 0);
 			if (bytes < 0)
-				std::cerr << "recv() failed\n";
+				std::cerr << "recv() failed\n"; //Throw ??
 			else if (!bytes)
 				__disconnectUser(_users[i - 1], i);
 			else
 			{
 				_users[i - 1].getBuffer() += buffer;
-				std::string msg(_users[i - 1].getBuffer());
-				if (std::string(buffer).find("\r\n") == std::string::npos)
+				if (_users[i - 1].getBuffer().find("\r\n") == std::string::npos)
 					continue;
-				std::vector<std::string> vecCmd = __parseCmd2(msg);
-				std::cout << "Input buffer: " << _users[i - 1].getBuffer().substr(0, _users[i - 1].getBuffer().size() - 2) << ", vec: " << vecCmd << '\n';
-				std::map<std::string, ptrFonction>::iterator it = _serverCmd.end();
-				if (vecCmd.size() >= 2)
-					it = _serverCmd.find(vecCmd[1]);
-
-				if (it != _serverCmd.end()) // A changer notamment pour la partie auth
-					(*(it->second))(vecCmd); //exec cmd
-
-				LOG_SEND(i, msg);
+				vecCmd = __parseCmd2(_users[i - 1].getBuffer());
 				
-				if (msg.find("PASS") != std::string::npos)
-					__passCMD(vecCmd, _users[i - 1]);
-				if (msg.find("USER") != std::string::npos)
-					__userCMD(vecCmd, _users[i - 1]);
-				if (msg.find("NICK") != std::string::npos)
-					__nickCMD(vecCmd, _users[i - 1]);
-				
-				if (msg.find("JOIN") != std::string::npos)
-					__joinChannel(vecCmd, _users[i - 1]);
-				if (msg.find("PART") != std::string::npos)
-					__leaveChannel(vecCmd, _users[i - 1]);
-
-				if (msg.find("DIR") != std::string::npos)
-					_users[0].sendMsg(&msg[4]);
-
-				if (msg.find("PING") != std::string::npos)
-					__sendPong(vecCmd, _users[i - 1]);
-				if (msg.find("PRIVMSG") != std::string::npos)
-					__privMsg(vecCmd, _users[i - 1]);
-				
-				if (_users[i - 1].checkMode(BIT(User::AWAY)) 
-					&& !msg.find("PING") && !msg.find("PONG"))
-					_users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
-
-				else if (msg.find("NOTICE") != std::string::npos)
-					__noticeCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("MODE") != std::string::npos)
-					__changeChanMode(vecCmd, _users[i - 1]);
-				else if (msg.find("TOPIC") != std::string::npos)
-					__topicCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("motd") != std::string::npos)
-					__motdCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("INVITE") != std::string::npos)
-					__inviteCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("KICK") != std::string::npos)
-					__kickCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("QUIT") != std::string::npos)
-					__quitCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("die") != std::string::npos)
-					__dieCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("OPER") != std::string::npos)
-					__operCMD(vecCmd, _users[i - 1]);
-				else if (msg.find("AWAY") != std::string::npos)
-					__awayCMD(vecCmd, _users[i - 1]);
+				// std::cout << "Input buffer: " << _users[i - 1].getBuffer().substr(0, _users[i - 1].getBuffer().size() - 2) << ", vec: " << vecCmd << '\n';
+				bool isCommand = true;
+				while (isCommand)
+				{
+					std::map<std::string, ptrFonction>::iterator it = _serverCmd.find(vecCmd[0]);
+					if (it != _serverCmd.end())
+						(this->*(it->second))(vecCmd, _users[i - 1]);
+					isCommand = __containsCMD(vecCmd);
+				}
 				_users[i - 1].getBuffer().clear();
 			}
 		}
@@ -812,28 +836,26 @@ void	Server::__printDebug(void) const
 	std::cout << _users << '\n';
 }
 
-std::map<std::string, ptrFonction> Server::__initCmd() {
-	std::map<std::string, ptrFonction> serverCmd;
-	
-	// serverCmd["CAP"] = &nickCmd;
-	serverCmd["NICK"] = &nickCmd;
-	serverCmd["USER"] = &userCmd;
-	serverCmd["OPER"] = &operCmd;
-	serverCmd["MODE"] = &modeCmd;
-	serverCmd["QUIT"] = &quitCmd;
-	serverCmd["SQUIT"] = &squitCmd;
-	serverCmd["JOIN"] = &joinCmd;
-	serverCmd["KILL"] = &killCmd;
-	serverCmd["KICK"] = &kickCmd;
-	serverCmd["ERROR"] = &errorCmd;
-	serverCmd["PART"] = &partCmd;
-	serverCmd["PRIVMSG"] = &privmsgCmd;
-	serverCmd["NOTICE"] = &noticeCmd;
-	serverCmd["AWAY"] = &awayCmd;
-	serverCmd["DIE"] = &dieCmd;
-	serverCmd["RESTART"] = &restartCmd;
 
-	return (serverCmd);
+void	Server::__initCmd(void)
+{
+	_serverCmd["PASS"] = &Server::__passCMD;
+	_serverCmd["USER"] = &Server::__userCMD;
+	_serverCmd["NICK"] = &Server::__nickCMD;
+	_serverCmd["JOIN"] = &Server::__joinChannel;
+	_serverCmd["PART"] = &Server::__leaveChannel;
+	_serverCmd["PING"] = &Server::__sendPong;
+	_serverCmd["PRIVMSG"] = &Server::__privMsg;
+	_serverCmd["NOTICE"] = &Server::__noticeCMD;
+	_serverCmd["MODE"] = &Server::__changeChanMode; //CHANGER POUR GERER LES MODES USERS
+	_serverCmd["TOPIC"] = &Server::__topicCMD;
+	_serverCmd["motd"] = &Server::__motdCMD;
+	_serverCmd["INVITE"] = &Server::__inviteCMD;
+	_serverCmd["KICK"] = &Server::__kickCMD;
+	_serverCmd["QUIT"] = &Server::__quitCMD;
+	_serverCmd["kill"] = &Server::__killCMD;
+	_serverCmd["AWAY"] = &Server::__awayCMD;
+	_serverCmd["OPER"] = &Server::__operCMD;
 }
 
 std::vector<std::string> Server::__parseCmd(std::string str) {
@@ -865,4 +887,3 @@ void	Server::run(void)
 		__printDebug();
 	}
 }
-#endif // __SERVER_H__

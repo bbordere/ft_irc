@@ -1,7 +1,7 @@
 #include "Channel.hpp"
 #include "Server.hpp"
 
-Channel::Channel(std::string const &name): _name(name), _topic("Default Topic"),
+Channel::Channel(std::string const &name): _name(name), _topic(""),
 											_key(""), _maxUsers(0), _mode(0) {}
 
 void	Channel::setName(std::string const &name)
@@ -77,42 +77,87 @@ void	Channel::setKey(std::string const &key)
 	_key = key;
 }
 
+void	Channel::__addModeSet(std::set<char> &set, std::string::const_iterator first, std::string::const_iterator last, std::string &queue) const
+{
+	std::string const possibilities = "+-imnptkl";
+	std::string const modeWithParams = "kl";
+
+	while (first != last)
+	{
+		if (possibilities.find(*first) != std::string::npos)
+			set.insert(*first);
+		if (modeWithParams.find(*first) != std::string::npos)
+			queue.push_back(*first);
+		first++;
+	}
+}
+
+void	Channel::__modesParamsHandling(vec_str_t const &msg, std::string const &queue)
+{
+	for (std::size_t i = 0; i < queue.size(); ++i)
+	{
+		if (queue[i] == 'l')
+		{
+			if (i + 3 < msg.size())
+				setMaxUser(std::atoll(msg[i + 3].c_str()));
+			else
+				setMaxUser(0);
+		}
+		else if (queue[i] == 'k')
+		{
+			if (i + 3 < msg.size())
+				setKey(numberToString(hash(msg[i + 3])));
+			else
+			{
+				uint8_t curMode = getMode();
+				__updateMode(CLEAR_N_BIT(curMode, Channel::KEY_LOCK));
+				setKey("");
+			}
+		}
+	}
+}
 
 bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> const &users)
 {
+	if (msg[2] == "b") // JSP CE QUE VEUX IRSSI
+		return (true);
 	if (!checkModifCondition(user))
 		return (false);
 	std::string const possibilities = "imnptkl";
-	if (msg[2].size() != 2 || possibilities.find(msg[2][1]) == std::string::npos)
-	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, msg[1], ":Unknown flag"));
-		return (false);
-	}
+	if (msg[2].find_first_not_of("+-bimnptkl") != std::string::npos)
+		user.sendMsg(Server::getRPLString(RPL::ERR_UMODEUNKNOWNFLAG, user.getNickName() + " " + _name, ":Unknown flag"));
+	std::set<char> modes;
+	std::size_t i = 0;
+	std::size_t pos = 0;
+	std::string argWithParamsQueue = "";
 	uint8_t curMode = getMode();
-	if (msg[2][0] == 'b')
-		return (true);
-
-	if (msg[2][0] == '+')
-		__updateMode(SET_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
-	else
-		__updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
-	broadcast(user.getAllInfos() + " MODE " + msg[1] + " " + msg[2], users);
-	if (msg[2][1] == 'l')
+	while (i != std::string::npos)
 	{
-		if (msg.size() == 4)
-			setMaxUser(std::atoll(msg[3].c_str()));
+		pos = msg[2].find_first_of("+-", pos + 1);
+		if (pos == std::string::npos)
+			__addModeSet(modes, msg[2].begin() + i, msg[2].end(), argWithParamsQueue);
 		else
-			setMaxUser(0);
-	}
-	else if (msg[2][1] == 'k')
-	{
-		if (msg.size() == 4)
-			setKey(numberToString(hash(msg[3])));
-		else
+			__addModeSet(modes, msg[2].begin() + i,msg[2].begin() + pos, argWithParamsQueue);
+		i = pos;
+		if (*modes.begin() == '+')
 		{
-			__updateMode(CLEAR_N_BIT(curMode, (possibilities.find(msg[2][1]) + 1)));
-			setKey("");
+			for (std::set<char>::const_iterator it = ++modes.begin(); it != modes.end(); ++it)
+			{
+				__updateMode(SET_N_BIT(curMode, (possibilities.find(*it) + 1)));
+				broadcast(user.getAllInfos() + " MODE " + msg[1] + " +" + *it, users);
+			}
 		}
+		else if (*modes.begin() == '-')
+		{
+			for (std::set<char>::const_iterator it = ++modes.begin(); it != modes.end(); ++it)
+			{
+				__updateMode(CLEAR_N_BIT(curMode, (possibilities.find(*it) + 1)));
+				broadcast(user.getAllInfos() + " MODE " + msg[1] + " -" + *it, users);
+			}
+		}
+		__modesParamsHandling(msg, argWithParamsQueue);
+		modes.clear();
+		argWithParamsQueue.clear();
 	}
 	return (true);
 }
