@@ -10,8 +10,8 @@ std::vector<std::string> split(std::string str, std::string const &delimiter)
 		res.push_back(str.substr(0, pos));
 		str.erase(0, pos + delimiter.length());
 	}
-	res.push_back(str);
-
+	if (!str.empty())
+		res.push_back(str);
 	return (res);
 }
 
@@ -24,10 +24,18 @@ uint64_t hash(std::string const &str)
 	return (hash);
 }
 
-std::string vecToStr(std::vector<std::string> const &vec)
+void	sigHandler(int sig)
+{
+	(void)sig;
+	throw (std::exception());
+}
+
+std::string vecToStr(std::vector<std::string> const &vec, std::size_t len)
 {
 	std::string res;
-	for (std::size_t i = 0; i < vec.size() - 1; ++i)
+	if (len == std::string::npos)
+		len = vec.size();
+	for (std::size_t i = 0; i < len - 1; ++i)
 		res += vec[i] + " ";
 	res += vec.back();
 	return (res);

@@ -96,6 +96,7 @@ std::string numberToString(T n)
 uint64_t hash(std::string const &str);
 
 std::vector<std::string> split(std::string str, std::string const &delimiter);
-std::string vecToStr(std::vector<std::string> const &vec);
+std::string vecToStr(std::vector<std::string> const &vec, std::size_t len = std::string::npos);
+void	sigHandler(int sig);
 
 #endif

@@ -128,7 +128,7 @@ class Server
 
 		void	__sendPong(vec_str_t const &msg, User &user);
 
-		void	__checkAuthClients(void);
+		void	__checkClientsStatus(void);
 
 		std::string	__cleanMsg(std::string msg) const;
 		std::string __getChanUsersList(Channel const &chan) const;
@@ -136,6 +136,7 @@ class Server
 		void	__usrModeHandling(vec_str_t const &msg, User &user);
 
 		void	__noticeCMD(vec_str_t const &msg, User &user);
+		void	__modeCMD(vec_str_t const &msg, User &user);
 
 		vec_str_t __parseCmd2(std::string str) const;
 
@@ -151,6 +152,8 @@ class Server
 		void	__motdCMD(vec_str_t const &msg, User &user);
 
 		map_chan_t::iterator __searchChannel(std::string const &name, User const &user);
+
+		void	__caseHandling(vec_str_t &msg) const;
 
 	public:
 

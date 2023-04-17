@@ -1,41 +1,35 @@
 CXX = clang++
 
 CXXFLAGS = -g3 -std=c++98 -Wall -Wextra -Werror -MMD -I includes
-# CXXFLAGS = -g3  -std=c++98 -MMD -I includes
 
-# FILES = srcs/protoServerSide.cpp
+SRCS_DIR = srcs/
+OBJS_DIR = objs/
+DEPS_DIR = deps/
+
 FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp srcs/utils.cpp srcs/Channel.cpp
+OBJS = $(patsubst $(SRCS_DIR)%.cpp, $(OBJS_DIR)%.o, $(FILES))
+DEPS = $(patsubst $(SRCS_DIR)%.cpp, $(DEPS_DIR)%.d, $(FILES))
 
-OBJS = $(FILES:.cpp=.o)
+NAME = ircserv
 
-DEPS = $(FILES:.cpp=.d)
-
-NAME = server
-
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJS_DIR)%.o: $(SRCS_DIR)%.cpp
+	@mkdir -p $(OBJS_DIR)
+	@mkdir -p $(DEPS_DIR)
+	$(CXX) $(CXXFLAGS) -c -MF $(patsubst $(OBJS_DIR)%.o, $(DEPS_DIR)%.d, $@) $< -o $@
 
 all: $(NAME)
-
-std: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
 $(NAME): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
 clean:
-	rm -f $(OBJS)
-	rm -f $(DEPS)
+	rm -Rf $(OBJS_DIR) $(DEPS_DIR)
 
 fclean: clean
 	rm -f $(NAME)
-
-run: all
-	@echo SERVER STARTED !
-	./server
 
 re: fclean all
 
 .PHONY: all clean fclean re
 
--include $(FILES:%.cpp=%.d)
+-include $(DEPS)

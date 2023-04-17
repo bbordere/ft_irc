@@ -153,7 +153,7 @@ void	User::sendMsg(std::string const &msg) const
 	if (_fd == -1)
 		return;
 	std::string to_send = msg + "\r\n";
-	std::cout << "Send to client N" <<  _id << ": " << to_send << '\n';
+	// std::cout << "Send to client N" <<  _id << ": " << to_send << '\n';
 	send(_fd, to_send.c_str(), to_send.length(), MSG_NOSIGNAL);
 }
 
@@ -174,7 +174,6 @@ uint8_t User::getMode(void) const
 {
 	return (_mode);
 }
-
 
 bool	User::checkMode(uint8_t const &mode) const
 {
