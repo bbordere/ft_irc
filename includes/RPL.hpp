@@ -7,6 +7,7 @@ namespace RPL
 	{
 		NONE = 0,
 		WELCOME = 1,
+		RPL_AWAY = 301,
 		RPL_UNAWAY = 305,
 		RPL_NOWAWAY = 306,
 		RPL_CHANNELMODEIS = 324,

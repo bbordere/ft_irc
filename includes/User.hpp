@@ -41,6 +41,7 @@ class User
 		void	setHostName(std::string const &hostName);
 		void	setFullName(std::string const &fullName);
 		void	setPassword(std::string const &password);
+		void	setUnawayMsg(std::string const &unawayMsg);
 		void	setFd(int const &fd);
 		void	setId(uint32_t const &id);
 
@@ -55,6 +56,7 @@ class User
 		std::string const &getHostName(void) const;
 		std::string const &getFullName(void) const;
 		std::string const &getPassword(void) const;
+		std::string const &getUnawayMsg(void) const;
 	
 		std::string &getBuffer(void);
 

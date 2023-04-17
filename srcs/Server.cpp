@@ -1,3 +1,6 @@
+#ifndef __SERVER_H__
+#define __SERVER_H__
+
 #include "Server.hpp"
 
 ServerFailureException::ServerFailureException(char const *msg): _msg(msg) {}
@@ -273,6 +276,8 @@ void	Server::__userPrivMsg(vec_str_t const &msg, User const &user)
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, user.getNickName(), msg[1],":No such nick"));
 		return;
 	}
+	if (!(*target).checkMode(BIT(User::AWAY)))
+		user.
 	(*target).sendMsg(user.getAllInfos() + " PRIVMSG " + (*target).getNickName() + " " + msg[2]);
 }
 
@@ -702,11 +707,13 @@ void	Server::__dieCMD(vec_str_t const &msg, User &user)
 void	Server::__awayCMD(vec_str_t const &msg, User &user) 
 {
 	user.unsetMode(User::AWAY);
-	user.sendMsg(Server::getRPLString(RPL::RPL_UNAWAY, "", user.getNickName(), "blabla"));
+	user.sendMsg(Server::getRPLString(RPL::RPL_UNAWAY, "", "", ""));
 	if (msg.size() > 1)
-	{
-		user._unawayMsg = msg[1];
-	}
+		user.setUnawayMsg(msg[1]);
+	else
+		user.setUnawayMsg("");
+
+	user.sendMsg("Unaway mesage is: " + user.getUnawayMsg());
 }
 
 void	Server::__handlePackets(void)
@@ -737,7 +744,7 @@ void	Server::__handlePackets(void)
 					(*(it->second))(vecCmd); //exec cmd
 
 				LOG_SEND(i, msg);
-
+				
 				if (msg.find("PASS") != std::string::npos)
 					__passCMD(vecCmd, _users[i - 1]);
 				if (msg.find("USER") != std::string::npos)
@@ -757,6 +764,11 @@ void	Server::__handlePackets(void)
 					__sendPong(vecCmd, _users[i - 1]);
 				if (msg.find("PRIVMSG") != std::string::npos)
 					__privMsg(vecCmd, _users[i - 1]);
+				
+				if (_users[i - 1].checkMode(BIT(User::AWAY)) 
+					&& !msg.find("PING") && !msg.find("PONG"))
+					_users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
+
 				else if (msg.find("NOTICE") != std::string::npos)
 					__noticeCMD(vecCmd, _users[i - 1]);
 				else if (msg.find("MODE") != std::string::npos)
@@ -853,3 +865,4 @@ void	Server::run(void)
 		__printDebug();
 	}
 }
+#endif // __SERVER_H__

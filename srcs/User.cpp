@@ -46,6 +46,11 @@ void	User::setPassword(std::string const &password)
 	_password = password;
 }
 
+void	User::setUnawayMsg(std::string const &unawayMsg)
+{
+	_unawayMsg= unawayMsg;
+}
+
 void	User::setFd(int const &fd)
 {
 	_fd = fd;
@@ -99,6 +104,11 @@ std::string const &User::getFullName(void) const
 std::string const &User::getPassword(void) const
 {
 	return (_password);
+}
+
+std::string const &User::getUnawayMsg(void) const
+{
+	return (_unawayMsg);
 }
 
 std::string  &User::getBuffer(void)
