@@ -91,6 +91,7 @@ class Server
 		void	__leaveChannel(vec_str_t const &name, User &user);
 
 		size_t __getUserIndex(std::string const &nick) const;
+		vec_str_t __parseMultiArgs(std::string const &args) const;
 
 		void	__privMsg(vec_str_t const &msg, User &user);
 		void	__userPrivMsg(vec_str_t const &msg, User &user);
@@ -118,7 +119,7 @@ class Server
 
 		void	__awayCMD(vec_str_t const &msg, User &user);
 
-		void	__joinExistingChan(vec_str_t const &name, User const &user);
+		void	__joinExistingChan(vec_str_t const &msg, std::string const &name, User const &user);
 
 		void	__inviteCMD(vec_str_t const &msg, User &user);
 		void	__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user);

@@ -164,9 +164,9 @@ void	Server::__handleConnection(void)
 	_users.push_back(newUser);
 }
 
-void	Server::__joinExistingChan(vec_str_t const &msg, User const &user)
+void	Server::__joinExistingChan(vec_str_t const &msg, std::string const &name, User const &user)
 {
-	Channel &chan = _channels.at(msg[1]);
+	Channel &chan = _channels.at(name);
 	if (!chan.checkJoinConditions(user, msg))
 		return;
 	chan.addUser(user);
@@ -177,15 +177,20 @@ void	Server::__joinChannel(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
-	if (_channels.count(msg[1]))
-		__joinExistingChan(msg, user);
-	else
+	vec_str_t chans = split(msg[1], ",");
+	std::cout << "chans: " << chans << '\n';
+	for (std::size_t i = 0; i < chans.size(); ++i)
 	{
-		std::cout << "New Chan " << '\n';
-		Channel &chan = (*_channels.insert(std::make_pair(msg[1], Channel(msg[1]))).first).second;
-		chan.addUser(user);
-		chan.setModeUser(user, Channel::CHAN_CREATOR);
-		chan.announceJoin(user, _users, __getChanUsersList(chan));
+		if (_channels.count(chans[i]))
+			__joinExistingChan(chans, chans[i], user);
+		else
+		{
+			std::cout << "New Chan " << '\n';
+			Channel &chan = (*_channels.insert(std::make_pair(chans[i], Channel(chans[i]))).first).second;
+			chan.addUser(user);
+			chan.setModeUser(user, Channel::CHAN_CREATOR);
+			chan.announceJoin(user, _users, __getChanUsersList(chan));
+		}
 	}
 }
 
@@ -236,29 +241,32 @@ void	Server::__leaveChannel(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 2, user))
 		return;
-	std::string name = msg[1];
 
+	vec_str_t chans = split(msg[1], ",");
 	vec_str_t::const_iterator partMsgIt = std::find_if(msg.begin(), msg.end(), __isMultiArg);
-
-	std::string partMsg;
-	if (partMsgIt != msg.end())
-		partMsg = " " + std::string(&(msg.back()[1]));
-
-	map_chan_t::iterator chanIt = __searchChannel(name, user);
-	if (chanIt == _channels.end())
-		return;
-	Channel &chan = (*chanIt).second;
-	if (!chan.isInChan(user))
+	std::cout << chans << '\n';
+	for (std::size_t i = 0; i < chans.size(); ++i)
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOTONCHANNEL, user.getNickName(), name, ":You're not on that channel"));
-		return;
+		std::string partMsg;
+		if (partMsgIt != msg.end())
+			partMsg = " " + std::string(&(msg.back()[1]));
+		std::cout << "PARTMSG: " << partMsg << '\n';
+		map_chan_t::iterator chanIt = __searchChannel(chans[i], user);
+		if (chanIt == _channels.end())
+			continue;
+		Channel &chan = (*chanIt).second;
+		if (!chan.isInChan(user))
+		{
+			user.sendMsg(Server::getRPLString(RPL::ERR_NOTONCHANNEL, user.getNickName(), chans[i], ":You're not on that channel"));
+			continue;
+		}
+		chan.delUser(user);
+		chan.delInvitedUser(user);
+		user.sendMsg(Server::formatMsg(std::string("PART ") + chans[i] + partMsg, user));
+		chan.broadcast(std::string("PART ") + chans[i] + partMsg, user, _users);
+		if (chan.isEmpty())
+			_channels.erase(chans[i]);
 	}
-	chan.delUser(user);
-	chan.delInvitedUser(user);
-	user.sendMsg(Server::formatMsg(std::string("PART ") + name + partMsg, user));
-	chan.broadcast(std::string("PART ") + name + partMsg, user, _users);
-	if (chan.isEmpty())
-		_channels.erase(name);
 }
 
 void	Server::__userPrivMsg(vec_str_t const &msg, User &user)
@@ -302,9 +310,9 @@ void	Server::__privMsg(vec_str_t const &msg, User &user)
 	if (!chan.checkSendConditions(user))
 		return;
 
-	std::cout << "Hash of msg: " << hash(vecToStr(msg)) << '\n';
+	std::cout << "Hash of msg: " << msg[2] << '\n';
 	//TO DO: Changer structure broadcast pour garder le vector
-	chan.broadcast(vecToStr(msg), user, _users);	
+	chan.broadcast(vecToStr(msg), user, _users);
 }
 
 void	Server::__noticeCMD(vec_str_t const &msg, User &user)
@@ -571,6 +579,7 @@ Server::vec_str_t Server::__parseCmd2(std::string str) const
 	std::vector<std::string> res;
 	str = __cleanMsg(str);
 	std::size_t pos;
+
 	while ((pos = str.find(" ")) != std::string::npos)
 	{
 		res.push_back(str.substr(0, pos));
@@ -657,28 +666,32 @@ void	Server::__kickCMD(vec_str_t const &msg, User &user)
 {
 	if (!__checkMsgLen(msg, 4, user))
 		return;
-	if (!__isChanExist(msg[1]))
+	vec_str_t chans = split(msg[1], ",");
+	for (std::size_t i = 0; i < chans.size(); ++i)
 	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
-		return;	
-	}
-	Channel &chan = _channels.at(msg[1]);
+		if (!__isChanExist(chans[i]))
+		{
+			user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + chans[i], ":No such channel"));
+			continue;;
+		}
+		Channel &chan = _channels.at(chans[i]);
 
-	vec_usr_t::const_iterator target = getUserByNick(msg[2]);
-	if (target == _users.end() || !chan.isInChan(*target))
-	{
-		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, msg[2], ":No such nick"));
-		return;
-	}
+		vec_usr_t::const_iterator target = getUserByNick(msg[2]);
+		if (target == _users.end() || !chan.isInChan(*target))
+		{
+			user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, msg[2], ":No such nick"));
+			continue;
+		}
 
-	if (!chan.checkModifCondition(user))
-		return;
-	std::string reason = "Kicked by operator";
-	if (msg.size() == 4)
-		reason = msg[3];
-	chan.broadcast(":" + user.getNickName() + " KICK " + msg[1] + " " + msg[2] + " " + reason, _users);
-	chan.delUser(*target);
-	chan.delInvitedUser(*target);
+		if (!chan.checkModifCondition(user))
+			continue;
+		std::string reason = "";
+		if (msg.back() != ":")
+			reason = msg[3];
+		chan.broadcast(user.getAllInfos() + " KICK " + chans[i] + " " + msg[2] + " " + reason, _users);
+		chan.delUser(*target);
+		chan.delInvitedUser(*target);
+	}
 }
 
 void	Server::__leaveAllChan(User const &user)
@@ -765,7 +778,7 @@ bool	Server::__containsCMD(vec_str_t &msg) const
 {
 	std::string const cmdHandled[] = {"CAP", "PASS", "USER", "NICK", "JOIN", "PART", "PING", "PRIVMSG", 
 									"NOTICE", "MODE", "TOPIC", "motd", "INVITE", "KICK", "QUIT",
-									"kill"};
+									"kill"}; //TO DO UPDATE CMD LIST
 	for (std::size_t i = 1; i < msg.size(); ++i)
 	{
 		std::string const *cmd = std::find(cmdHandled, cmdHandled + 15, msg[i]);
@@ -779,10 +792,6 @@ bool	Server::__containsCMD(vec_str_t &msg) const
 	msg.clear();
 	return (false);
 }
-
-				// if (_users[i - 1].checkMode(BIT(User::AWAY)) 
-				// 	&& !msg.find("PING") && !msg.find("PONG"))
-				// 	_users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
 
 void	Server::__handlePackets(void)
 {
@@ -800,11 +809,18 @@ void	Server::__handlePackets(void)
 			else
 			{
 				_users[i - 1].getBuffer() += buffer;
+				if (_users[i - 1].getBuffer().find("STOP") != std::string::npos)
+					_isOn = false;
 				if (_users[i - 1].getBuffer().find("\r\n") == std::string::npos)
 					continue;
+
+				if (_users[i - 1].checkMode(BIT(User::AWAY)) 
+					&& !_users[i - 1].getBuffer().find("PING") && !_users[i - 1].getBuffer().find("PONG"))
+					_users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
+
 				vecCmd = __parseCmd2(_users[i - 1].getBuffer());
 				
-				// std::cout << "Input buffer: " << _users[i - 1].getBuffer().substr(0, _users[i - 1].getBuffer().size() - 2) << ", vec: " << vecCmd << '\n';
+				std::cout << "Input buffer: " << _users[i - 1].getBuffer().substr(0, _users[i - 1].getBuffer().size() - 2) << ", vec: " << vecCmd << '\n';
 				bool isCommand = true;
 				while (isCommand)
 				{
@@ -856,6 +872,7 @@ void	Server::__initCmd(void)
 	_serverCmd["kill"] = &Server::__killCMD;
 	_serverCmd["AWAY"] = &Server::__awayCMD;
 	_serverCmd["OPER"] = &Server::__operCMD;
+	_serverCmd["die"] = &Server::__dieCMD;
 }
 
 std::vector<std::string> Server::__parseCmd(std::string str) {
@@ -884,6 +901,6 @@ void	Server::run(void)
 			__handleConnection();
 		else
 			__handlePackets();
-		__printDebug();
+		// __printDebug();
 	}
 }
