@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <cstdlib>
+#include <signal.h>
 #include <poll.h>
 
 class BotFailureException: public std::exception
@@ -41,7 +43,7 @@ class Bot
 		struct sockaddr_in _serverAddr;
 
 	public:
-		Bot(std::size_t port, std::string const &serverIp, std::string const &password);
+		Bot(std::string const &serverIp, std::size_t port, std::string const &password);
 		~Bot();
 		std::string recvMsg(int sock) const;
 
@@ -52,8 +54,8 @@ class Bot
 		void		helpHandling(void) const;
 
 		void		resetApiSocket(std::string const &name);
-		void		sendMsg(int sock, std::string const &msg) const;
-		void		sendMsgChan(std::string const &msg) const;
+		bool		sendMsg(int sock, std::string const &msg) const;
+		bool		sendMsgChan(std::string const &msg) const;
 		void		rickRollHandling(void) const;
 		void		auth(void);
 		void		run(void);

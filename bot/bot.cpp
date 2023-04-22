@@ -1,6 +1,12 @@
 #include "bot.hpp"
 
-Bot::Bot(std::size_t port, std::string const &serverIp, std::string const &password):
+void sigHandler(int sig)
+{
+	(void)sig;
+	throw (std::exception());
+}
+
+Bot::Bot(std::string const &serverIp, std::size_t port,std::string const &password):
 	_botName("beBot"), _password(password), _chanName(""), _buffer(""), _clientSocket(-1), _apiSocket(-1),
 	_isConnected(false), _serverAddr()
 {
@@ -25,17 +31,20 @@ Bot::~Bot()
 		close(_clientSocket);
 }
 
-void		Bot::sendMsg(int sock, std::string const &msg) const
+bool	Bot::sendMsg(int sock, std::string const &msg) const
 {
-	if (send(sock, msg.c_str(), msg.length(), MSG_NOSIGNAL) < 0)
-		throw BotFailureException("send Failure");
+	if (send(sock, msg.c_str(), msg.length(), 0) < 0)
+		return (false);
 	std::cout << "Bot send: " << msg << '\n';
+	return (true);
 }
 
-void		Bot::sendMsgChan(std::string const &msg) const
+bool	Bot::sendMsgChan(std::string const &msg) const
 {
+	if (!_isConnected)
+		return (false);
 	std::string toSend = "NOTICE " + _chanName + " :" + msg + "\r\n";
-	sendMsg(_clientSocket, toSend);
+	return (sendMsg(_clientSocket, toSend));
 }
 
 std::string Bot::getReqString(std::string const &host, std::string const &req) const
@@ -87,12 +96,13 @@ void	Bot::parseApiContent(std::string const &host, std::string const &content) c
 			sendMsgChan("Unable to find ISS position !");
 		else
 		{
-			std::string msg = "ISS current position: Latitude: ";
-			std::size_t i = content.find("latitude") + 12;
+			std::cout << content << '\n';
+			std::string msg = "ISS current position: Longitude: ";
+			std::size_t i = content.find("longitude") + 13;
 			std::size_t j = content.find('\"', i + 1);
 			msg.append(content.substr(i, j - i));
-			msg.append(", Longitude: ");
-			i = content.find("longitude", i) + 13;
+			msg.append(", Latitude: ");
+			i = content.find("latitude") + 12;
 			j = content.find('\"', i + 1);
 			msg.append(content.substr(i, j - i));
 			sendMsgChan(msg);
@@ -118,22 +128,23 @@ void	Bot::apiHandling(std::string const &host, std::string const &req)
 
 void		Bot::rickRollHandling(void) const
 {
-	sendMsgChan("🕺 Never gonna give you up 🕺");
-	sleep(1);
-	sendMsgChan("🕺 Never gonna let you down 🕺");
-	sleep(1);
-	sendMsgChan("🕺 Never gonna run around and desert you 🕺");
-	sleep(1);
-	sendMsgChan("🕺 Never gonna make you cry 🕺");
-	sleep(1);
-	sendMsgChan("🕺 Never gonna say goodbye 🕺");
-	sleep(1);
-	sendMsgChan("🕺 Never gonna tell a lie and hurt you 🕺");
+	std::string lyrics[] = {"🕺 Never gonna give you up 🕺",
+							"🕺 Never gonna let you down 🕺",
+							"🕺 Never gonna run around and desert you 🕺",
+							"🕺 Never gonna make you cry 🕺",
+							"🕺 Never gonna say goodbye 🕺",
+							"🕺 Never gonna tell a lie and hurt you 🕺"};
+	for (std::size_t i = 0; i < 6; ++i)
+	{
+		if (!sendMsgChan(lyrics[i]))
+			return;
+		sleep(1);
+	}
 }
 
 void	Bot::helpHandling(void) const
 {
-	sendMsgChan("BeBot Commands\r\n?math -> Get random fact about Maths, ?iss -> Get current postion of ISS, ?rick -> Surpise !");
+	sendMsgChan("BeBot Commands: ?math -> Get random fact about Maths, ?iss -> Get current postion of ISS, ?rick -> Surpise !");
 }
 
 void	Bot::auth(void)
@@ -154,41 +165,66 @@ void	Bot::auth(void)
 
 void	Bot::run(void)
 {
+	signal(SIGINT, sigHandler);
+	signal(SIGPIPE, sigHandler);
 	while (connect(_clientSocket, (struct sockaddr *)&_serverAddr, sizeof(_serverAddr)) < 0)
 		sleep(1);
 	auth();
 	while (_buffer.find("376") == std::string::npos)
+	{
 		_buffer = recvMsg(_clientSocket);
+		if (_buffer.empty())
+			throw std::exception();
+	}
 
 	std::string message = "JOIN #bot\r\n"; //TODO COLISION CHAN HANDLING
 	_chanName = "#bot";
-
 	sendMsg(_clientSocket, message);
 
-	while (1)
+	_buffer = recvMsg(_clientSocket);
+	std::cout << "Buff: " << _buffer << '\n';
+	if (_buffer.find("473") != std::string::npos)
+		throw BotFailureException("Cannot join chan");
+
+
+	while (_isConnected)
 	{
 		_buffer = recvMsg(_clientSocket);
+		if (_buffer.empty())
+			throw std::exception();
 		std::string cmd = _buffer.substr(_buffer.find(":?") + 2);
-		// while (std::isspace(cmd.back())) // TO DO FAIRE CLEAING EN CAS DE WHITE SPACE
-		// 	cmd.pop_back();
+		cmd.erase(cmd.find_last_not_of(" \r\n") + 1);
 		std::cout << cmd << '\n';
+
 		if (cmd == "help")
 			helpHandling();
-		if (cmd == "math")
+		else if (cmd == "math")
 			apiHandling("numbersapi.com", "/random/math");
-		if (cmd == "iss")
+		else if (cmd == "iss")
 			apiHandling("api.open-notify.org", "/iss-now.json");
-		if (cmd == "rick")
+		else if (cmd == "rick")
 			rickRollHandling();
-
-		if (cmd == "stop")
-			break;
 	}
 }
 
-int main()
+int main(int ac, char **av)
 {
-	Bot bot(6667, "localhost", "1234");
-	bot.run();
+	if (ac != 4)
+	{
+		std::cout << "Usage: ./beBot [ip] [port] [password]" << '\n';
+		return (1);
+	}
+
+	try
+	{
+		Bot bot(av[1], std::atoi(av[2]), av[3]);
+		bot.run();
+	}
+	catch(const BotFailureException& e)
+	{
+		std::cerr << e.what() << '\n';
+		return (1);
+	}
+	catch(const std::exception& e){}
 	return 0;
 }
