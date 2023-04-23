@@ -117,6 +117,11 @@ class Server
 
 		void	__awayCMD(vec_str_t const &msg, User &user);
 
+		void	__namesCMD(vec_str_t const &msg, User &user);
+		void	__listCMD(vec_str_t const &msg, User &user);
+		// void	__whoCMD(vec_str_t const &msg, User &user);
+
+
 		void	__joinExistingChan(vec_str_t const &msg, std::string const &name, User const &user);
 
 		void	__inviteCMD(vec_str_t const &msg, User &user);

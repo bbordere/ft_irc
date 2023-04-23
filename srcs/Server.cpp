@@ -768,6 +768,57 @@ void	Server::__dieCMD(vec_str_t const &msg, User &user)
 		_isOn = false;
 }
 
+void	Server::__namesCMD(vec_str_t const &msg, User &user)
+{
+	if (msg.size() == 1) {
+		map_chan_t::const_iterator chanIt = _channels.find(msg[1]);
+		if (chanIt == _channels.end())
+		{
+			user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
+			return ;
+		}
+		user.sendMsg("[" + chanIt->first + "]");
+
+		// Channel const &chan = (*chanIt).second;
+		// if (!chan.checkSendConditions(user))
+		// 	return;
+		// chan.broadcast(vecToStr(msg, 3), user, _users);
+	}
+}
+
+void	Server::__listCMD(vec_str_t const &msg, User &user) {
+	if (msg.size() == 1) {
+		for (map_chan_t::const_iterator chanIt = _channels.begin(); chanIt != _channels.end(); chanIt++) {
+			std::stringstream ss;
+			ss << chanIt->second.getNbUsers();
+			std::string nbUser = ss.str();
+			user.sendMsg("[" + chanIt->second.getName() + "] " + "nb user: " + nbUser + " topic: " + chanIt->second.getTopic());
+		}
+	} else {
+		map_chan_t::const_iterator chanIt = _channels.find(msg[1]);
+		if (chanIt == _channels.end())
+		{
+			user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
+			return ;
+		}
+		std::stringstream ss;
+		ss << chanIt->second.getNbUsers();
+		std::string nbUser = ss.str();
+		user.sendMsg("[" + chanIt->second.getName() + "] " + "nb user: " + nbUser + " topic: " + chanIt->second.getTopic());
+	}
+}
+
+// void	Server::__whoCMD(vec_str_t const &msg, User &user) {
+	
+// 	std::string mask = "*";
+// 	if (msg.size() > 1) {
+// 		mask = msg[1];
+// 	bool oper = false;
+// 	if (msg.size() > 2 && msg[2] == "o")
+// 		oper = true;
+	
+// }
+
 void	Server::__awayCMD(vec_str_t const &msg, User &user) 
 {
 	user.unsetMode(User::AWAY);
@@ -869,6 +920,7 @@ void	Server::__initCmd(void)
 {
 	_serverCmd["PASS"] = &Server::__passCMD;
 	_serverCmd["USER"] = &Server::__userCMD;
+	_serverCmd["NAMES"] = &Server::__namesCMD;
 	_serverCmd["NICK"] = &Server::__nickCMD;
 	_serverCmd["JOIN"] = &Server::__joinChannel;
 	_serverCmd["PART"] = &Server::__leaveChannel;
@@ -885,6 +937,8 @@ void	Server::__initCmd(void)
 	_serverCmd["AWAY"] = &Server::__awayCMD;
 	_serverCmd["OPER"] = &Server::__operCMD;
 	_serverCmd["DIE"] = &Server::__dieCMD;
+	_serverCmd["LIST"] = &Server::__listCMD;
+	// _serverCmd["WHO"] = &Server::__whoCMD;
 }
 
 std::vector<std::string> Server::__parseCmd(std::string str) {
