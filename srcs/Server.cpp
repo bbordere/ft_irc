@@ -325,11 +325,10 @@ void	Server::__noticeCMD(vec_str_t const &msg, User &user)
 		(*target).sendMsg(user.getAllInfos() + " NOTICE " + (*target).getNickName() + " " + msg[2]);
 		return;
 	}
-
 	map_chan_t::const_iterator chanIt = _channels.find(chanName);
+	std::cout << _channels.count(chanName) << '\n';
 	if (chanIt == _channels.end())
 		return;
-
 	Channel const &chan = (*chanIt).second;
 	if (chan.isInMode(BIT(Channel::NO_OUT)) && !chan.isInChan(user))
 		return;
@@ -823,8 +822,6 @@ void	Server::__handlePackets(void)
 			else
 			{
 				_users[i - 1].getBuffer() += buffer;
-				if (_users[i - 1].getBuffer().find("STOP") != std::string::npos)
-					_isOn = false;
 				if (_users[i - 1].getBuffer().find("\r\n") == std::string::npos)
 					continue;
 
@@ -833,12 +830,12 @@ void	Server::__handlePackets(void)
 					_users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
 
 				vecCmd = __parseCmd2(_users[i - 1].getBuffer());
-				__caseHandling(vecCmd);
-				// std::cout << "Input buffer: " << _users[i - 1].getBuffer().substr(0, _users[i - 1].getBuffer().size() - 2) << ", vec: " << vecCmd << '\n';
 				bool isCommand = true;
 				while (isCommand)
 				{
-					std::cout << "Vec: " << vecCmd << "\n\n";
+					__caseHandling(vecCmd);
+					if (!__authExecHandling(vecCmd[0], _users[i - 1]))
+						break;
 					std::map<std::string, ptrFonction>::iterator it = _serverCmd.find(vecCmd[0]);
 					if (it != _serverCmd.end())
 						(this->*(it->second))(vecCmd, _users[i - 1]);
@@ -919,4 +916,21 @@ void	Server::run(void)
 			__handlePackets();
 		// __printDebug();
 	}
+}
+
+bool	Server::__authExecHandling(std::string const &cmd, User const &user) const
+{
+	if (__isAuthNeeded(cmd) && !user.getAuthState())
+	{
+		user.sendMsg(Server::getRPLString(RPL::ERR_NOTREGISTERED, user.getNickName(), ":You have not registered !"));
+		return (false);
+	}
+	return (true);
+}
+
+
+bool	Server::__isAuthNeeded(std::string const &msg) const
+{
+	std::string authCmds[] = {"CAP", "PASS", "NICK", "USER"};
+	return (std::find(authCmds, authCmds + 4, msg) == authCmds + 4);
 }

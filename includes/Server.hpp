@@ -87,11 +87,9 @@ class Server
 
 		void	__joinChannel(vec_str_t const &msg, User &user);
 		void	__disconnectUser(User const &user, std::size_t const &i);
-		void	__disconnectUser(User &user);
 		void	__leaveChannel(vec_str_t const &name, User &user);
 
 		size_t __getUserIndex(std::string const &nick) const;
-		vec_str_t __parseMultiArgs(std::string const &args) const;
 
 		void	__privMsg(vec_str_t const &msg, User &user);
 		void	__userPrivMsg(vec_str_t const &msg, User &user);
@@ -154,6 +152,9 @@ class Server
 		map_chan_t::iterator __searchChannel(std::string const &name, User const &user);
 
 		void	__caseHandling(vec_str_t &msg) const;
+
+		bool	__isAuthNeeded(std::string const &msg) const;
+		bool	__authExecHandling(std::string const &cmd, User const &user) const;
 
 	public:
 

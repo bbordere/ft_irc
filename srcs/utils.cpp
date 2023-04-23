@@ -37,6 +37,6 @@ std::string vecToStr(std::vector<std::string> const &vec, std::size_t len)
 		len = vec.size();
 	for (std::size_t i = 0; i < len - 1; ++i)
 		res += vec[i] + " ";
-	res += vec.back();
+	res += vec[len - 1];
 	return (res);
 }
