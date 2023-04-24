@@ -29,6 +29,8 @@ Bot::~Bot()
 	sendMsg(_clientSocket, "QUIT :Leaving\r\n");
 	if (_clientSocket != -1)
 		close(_clientSocket);
+	if (_apiSocket != -1)
+		close(_apiSocket);
 }
 
 bool	Bot::sendMsg(int sock, std::string const &msg) const
@@ -76,8 +78,6 @@ void	Bot::resetApiSocket(std::string const &name)
 	struct addrinfo *servInfo;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	if (_apiSocket != -1)
-		close(_apiSocket);
 	_apiSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_apiSocket < 0)
 		throw BotFailureException("Socket Failure");
@@ -124,6 +124,9 @@ void	Bot::apiHandling(std::string const &host, std::string const &req)
 	if (bytes < 0)
 		throw BotFailureException("recv Failure");
 	parseApiContent(host, content);
+	if (_apiSocket != -1)
+		close(_apiSocket);
+	_apiSocket = -1;
 }
 
 void		Bot::rickRollHandling(void) const
@@ -144,7 +147,7 @@ void		Bot::rickRollHandling(void) const
 
 void	Bot::helpHandling(void) const
 {
-	sendMsgChan("BeBot Commands: ?math -> Get random fact about Maths, ?iss -> Get current postion of ISS, ?rick -> Surpise !");
+	sendMsgChan("BeBot Commands: ?math -> Get random fact about Maths, ?iss -> Get current postion of ISS, ?rick -> Surprise !");
 }
 
 void	Bot::auth(void)
