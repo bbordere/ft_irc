@@ -841,7 +841,7 @@ void	Server::__handlePackets(void)
 			char buffer[1024] = {};
 			ssize_t bytes = recv(_pollingList[i].fd, &buffer, sizeof(buffer), 0);
 			if (bytes < 0)
-				std::cerr << "recv() failed\n"; //Throw ??
+				std::cerr << "recv() failed\n";
 			else if (!bytes)
 				__disconnectUser(_users[i - 1], i);
 			else
@@ -940,12 +940,12 @@ void	Server::run(void)
 	while (_isOn)
 	{
 		if (poll(&_pollingList[0], _pollingList.size(), -1) < 0)
-			break; // ERROR HANDLING
+			throw (ServerFailureException("poll"));
 		if (_pollingList[0].revents & POLLIN)
 			__handleConnection();
 		else
 			__handlePackets();
-		// __printDebug();
+		__printDebug();
 	}
 }
 

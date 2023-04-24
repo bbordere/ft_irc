@@ -177,7 +177,7 @@ void	Bot::run(void)
 			throw std::exception();
 	}
 
-	std::string message = "JOIN #bot\r\n"; //TODO COLISION CHAN HANDLING
+	std::string message = "JOIN #bot\r\n"; 
 	_chanName = "#bot";
 	sendMsg(_clientSocket, message);
 
