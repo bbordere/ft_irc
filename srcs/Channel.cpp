@@ -119,7 +119,7 @@ void	Channel::__modesParamsHandling(vec_str_t const &msg, std::string const &que
 
 bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> const &users)
 {
-	if (msg[2] == "b") // JSP CE QUE VEUX IRSSI
+	if (msg[2] == "b")
 		return (true);
 	if (!checkModifCondition(user))
 		return (false);
@@ -260,14 +260,6 @@ bool	Channel::checkJoinConditions(User const &user, vec_str_t const &msg) const
 											std::make_pair(RPL::ERR_CHANNELISFULL, ":Chan is full"),
 											std::make_pair(RPL::ERR_INVITEONLYCHAN, ":Cannot join private channel"),
 											std::make_pair(RPL::ERR_BANNEDFROMCHAN, ":You're banned from this channel")};
-
-
-	/*
-	**Tab pour les check les conditions
-	** first -> condition a respecter
-	** second -> condition est-elle respectee ?
-	*/
-	//TO DO ADD BAN
 	std::pair<bool, bool> conditions[] = {std::make_pair(isInMode(BIT(Channel::INV_ONLY)), isInvited(user)),
 											std::make_pair(isInMode(BIT(Channel::KEY_LOCK)), (msg.size() == 3 && numberToString(hash(msg[2])) == _key)),
 											std::make_pair(isInMode(BIT(Channel::USR_LIM)), checkUserLimit()),

@@ -138,13 +138,11 @@ bool	User::getLeavingState(void) const
 
 struct sockaddr *User::getAddress(void)
 {
-	// return (reinterpret_cast<struct sockaddr *>(&_address));
 	return ((struct sockaddr *)(&_address));
 }
 
 socklen_t		*User::getAddressSize(void)
 {
-	// return (reinterpret_cast<socklen_t *>(&_addressSize));
 	return ((socklen_t *)(&_addressSize));
 }
 

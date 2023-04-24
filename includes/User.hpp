@@ -80,11 +80,7 @@ class User
 		bool	checkMode(uint8_t const &mode) const;
 
 		uint8_t getMode(void) const;
-
-
-		// std::string	&getBuffer(void); // A voir
-
-		// User();
+		
 		User(int const fd, struct sockaddr_in);
 		User(std::string const &nick);
 };

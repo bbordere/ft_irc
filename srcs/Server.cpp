@@ -283,8 +283,10 @@ void	Server::__userPrivMsg(vec_str_t const &msg, User &user)
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, user.getNickName(), msg[1],":No such nick"));
 		return;
 	}
-	if (!(*target).checkMode(BIT(User::AWAY)))
-		user.sendMsg((*target).getUnawayMsg());
+    if ((*target).checkMode(BIT(User::AWAY))) {
+		user.sendMsg((*target).getNickName() + " is away" + (*target).getUnawayMsg());
+		user.sendMsg((*target).getAllInfos() + " PRIVMSG " + (*target).getNickName() + " away message" + (*target).getUnawayMsg());
+	}
 	(*target).sendMsg(user.getAllInfos() + " PRIVMSG " + (*target).getNickName() + " " + msg[2]);
 }
 
@@ -557,10 +559,12 @@ void	Server::__inviteCMD(vec_str_t const &msg, User &user)
 		return;
 	std::string const targetUser = msg[1];
 	std::string const chanName = msg[2];
+	std::vector<User>::const_iterator it = getUserByNick(targetUser);
 
+	if (it != _users.end() && it->checkMode(BIT(User::AWAY)))
+		user.sendMsg((*it).getNickName() + " is away" + (*it).getUnawayMsg());
 	if (!__isChanExist(chanName))
 	{
-		std::vector<User>::const_iterator it = getUserByNick(targetUser);
 		if (it == _users.end())
 			user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHNICK, targetUser, targetUser,":No such nick"));
 		else
@@ -768,24 +772,6 @@ void	Server::__dieCMD(vec_str_t const &msg, User &user)
 		_isOn = false;
 }
 
-void	Server::__namesCMD(vec_str_t const &msg, User &user)
-{
-	if (msg.size() == 1) {
-		map_chan_t::const_iterator chanIt = _channels.find(msg[1]);
-		if (chanIt == _channels.end())
-		{
-			user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
-			return ;
-		}
-		user.sendMsg("[" + chanIt->first + "]");
-
-		// Channel const &chan = (*chanIt).second;
-		// if (!chan.checkSendConditions(user))
-		// 	return;
-		// chan.broadcast(vecToStr(msg, 3), user, _users);
-	}
-}
-
 void	Server::__listCMD(vec_str_t const &msg, User &user) {
 	if (msg.size() == 1) {
 		for (map_chan_t::const_iterator chanIt = _channels.begin(); chanIt != _channels.end(); chanIt++) {
@@ -808,33 +794,22 @@ void	Server::__listCMD(vec_str_t const &msg, User &user) {
 	}
 }
 
-// void	Server::__whoCMD(vec_str_t const &msg, User &user) {
-	
-// 	std::string mask = "*";
-// 	if (msg.size() > 1) {
-// 		mask = msg[1];
-// 	bool oper = false;
-// 	if (msg.size() > 2 && msg[2] == "o")
-// 		oper = true;
-	
-// }
-
 void	Server::__awayCMD(vec_str_t const &msg, User &user) 
 {
-	user.unsetMode(User::AWAY);
-	user.sendMsg(Server::getRPLString(RPL::RPL_UNAWAY, "", "", ""));
+	user.setMode(User::AWAY);
+	user.sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
 	if (msg.size() > 1)
 		user.setUnawayMsg(msg[1]);
 	else
-		user.setUnawayMsg("");
-	user.sendMsg("Unaway mesage is: " + user.getUnawayMsg());
+		user.setUnawayMsg("ZzZz");
+	user.sendMsg("Away mesage is: " + user.getUnawayMsg());
 }
 
 bool	Server::__containsCMD(vec_str_t &msg) const
 {
 	std::string const cmdHandled[] = {"CAP", "PASS", "USER", "NICK", "JOIN", "PART", "PING", "PRIVMSG", 
 									"NOTICE", "MODE", "TOPIC", "MOTD", "INVITE", "KICK", "QUIT",
-									"KILL", "DIE"}; //TO DO UPDATE CMD LIST
+									"KILL", "DIE"};
 	for (std::size_t i = 1; i < msg.size(); ++i)
 	{
 		std::string const *cmd = std::find(cmdHandled, cmdHandled + 15, msg[i]);
@@ -876,9 +851,13 @@ void	Server::__handlePackets(void)
 				if (_users[i - 1].getBuffer().find("\r\n") == std::string::npos)
 					continue;
 
-				if (_users[i - 1].checkMode(BIT(User::AWAY)) 
-					&& !_users[i - 1].getBuffer().find("PING") && !_users[i - 1].getBuffer().find("PONG"))
-					_users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_NOWAWAY, "", "", ""));
+				if (_users[i - 1].checkMode(BIT(User::AWAY))
+				                && _users[i - 1].getBuffer().find("PING") == std::string::npos 
+				                && _users[i - 1].getBuffer().find("PONG") == std::string::npos
+				                && _users[i - 1].getBuffer().find("AWAY") == std::string::npos){
+				        _users[i - 1].unsetMode(User::AWAY);
+				        _users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_UNAWAY, "", "", ""));
+				}
 
 				vecCmd = __parseCmd2(_users[i - 1].getBuffer());
 				bool isCommand = true;
@@ -920,14 +899,13 @@ void	Server::__initCmd(void)
 {
 	_serverCmd["PASS"] = &Server::__passCMD;
 	_serverCmd["USER"] = &Server::__userCMD;
-	_serverCmd["NAMES"] = &Server::__namesCMD;
 	_serverCmd["NICK"] = &Server::__nickCMD;
 	_serverCmd["JOIN"] = &Server::__joinChannel;
 	_serverCmd["PART"] = &Server::__leaveChannel;
 	_serverCmd["PING"] = &Server::__sendPong;
 	_serverCmd["PRIVMSG"] = &Server::__privMsg;
 	_serverCmd["NOTICE"] = &Server::__noticeCMD;
-	_serverCmd["MODE"] = &Server::__modeCMD; //CHANGER POUR GERER LES MODES USERS
+	_serverCmd["MODE"] = &Server::__modeCMD;
 	_serverCmd["TOPIC"] = &Server::__topicCMD;
 	_serverCmd["MOTD"] = &Server::__motdCMD;
 	_serverCmd["INVITE"] = &Server::__inviteCMD;
@@ -938,7 +916,6 @@ void	Server::__initCmd(void)
 	_serverCmd["OPER"] = &Server::__operCMD;
 	_serverCmd["DIE"] = &Server::__dieCMD;
 	_serverCmd["LIST"] = &Server::__listCMD;
-	// _serverCmd["WHO"] = &Server::__whoCMD;
 }
 
 std::vector<std::string> Server::__parseCmd(std::string str) {

@@ -39,7 +39,7 @@ namespace RPL
 		ERR_CHANOPRIVSNEEDED = 482,
 		ERR_UMODEUNKNOWNFLAG = 501,
 	};
-} // namespace RPL
+}
 
 
 #endif
