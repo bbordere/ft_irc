@@ -829,7 +829,6 @@ void	Server::__caseHandling(vec_str_t &msg) const
 	std::transform(msg[0].begin(), msg[0].end(), msg[0].begin(), ::toupper);
 	if (msg.size() >= 2 && msg[1].find("#") != std::string::npos)
 		std::transform(msg[1].begin(), msg[1].end(), msg[1].begin(), ::toupper);
-
 }
 
 void	Server::__handlePackets(void)
@@ -850,7 +849,6 @@ void	Server::__handlePackets(void)
 				_users[i - 1].getBuffer() += buffer;
 				if (_users[i - 1].getBuffer().find("\r\n") == std::string::npos)
 					continue;
-
 				if (_users[i - 1].checkMode(BIT(User::AWAY))
 				                && _users[i - 1].getBuffer().find("PING") == std::string::npos 
 				                && _users[i - 1].getBuffer().find("PONG") == std::string::npos
@@ -860,6 +858,8 @@ void	Server::__handlePackets(void)
 				}
 
 				vecCmd = __parseCmd2(_users[i - 1].getBuffer());
+				if (vecCmd.empty())
+					continue;
 				bool isCommand = true;
 				while (isCommand)
 				{
