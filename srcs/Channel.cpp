@@ -349,6 +349,11 @@ std::size_t Channel::getNbUsers(void) const
 	return (_users.size());
 }
 
+Channel::userMap_t	Channel::getUsers(void) const
+{
+	return (_users);
+}
+
 uint64_t	Channel::getMaxUsers(void) const
 {
 	return (_maxUsers);
@@ -364,6 +369,6 @@ std::ostream &operator<<(std::ostream &stream, Channel const &chan)
 	stream << "{Topic: " << chan.getTopic() << ", key: " << (chan.getKey().empty() ? "\"\"" : chan.getKey());
 	stream << ", maxUser: " << chan.getMaxUsers() << ", mode: " << (chan.getModeString().empty() ? "\"\"" : chan.getModeString());
 	stream << ", nb User: " << chan.getNbUsers();
-	stream << ", users: " << chan._users << '}';
+	stream << ", users: " << chan.getUsers() << '}';
 	return (stream);
 }

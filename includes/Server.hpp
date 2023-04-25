@@ -73,7 +73,6 @@ class Server
 
 		map_chan_t	_channels;
 
-		std::set<User, userComp>		_bannedUsers;
 		bool		_isOn;
 		std::string	const _password;
 		void	__initCmd(void);

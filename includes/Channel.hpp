@@ -12,6 +12,8 @@ class Channel
 		typedef std::map<uint32_t, uint16_t> userMap_t;
 		typedef std::vector<std::string> vec_str_t;
 
+		userMap_t _users;
+
 		std::set<uint32_t> _invitedSet;
 		std::string	_name;
 		std::string	_topic;
@@ -27,7 +29,6 @@ class Channel
 		void	__modesParamsHandling(vec_str_t const &msg, std::string const &queue);
 	
 	public:
-		userMap_t _users;
 
 		bool	checkModifCondition(User const &user) const;
 		enum CHAN_MODES
@@ -68,6 +69,8 @@ class Channel
 		bool	changeUserMode(vec_str_t const &msg, User &user, std::vector<User> const &users);
 
 		std::size_t getNbUsers(void) const;
+
+		userMap_t	getUsers() const;
 
 		bool	isInvited(User const &user) const;
 

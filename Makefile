@@ -6,7 +6,7 @@ SRCS_DIR = srcs/
 OBJS_DIR = objs/
 DEPS_DIR = deps/
 
-FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp srcs/utils.cpp srcs/Channel.cpp
+FILES = srcs/main.cpp srcs/Server.cpp srcs/User.cpp srcs/utils.cpp srcs/Channel.cpp srcs/command.cpp
 OBJS = $(patsubst $(SRCS_DIR)%.cpp, $(OBJS_DIR)%.o, $(FILES))
 DEPS = $(patsubst $(SRCS_DIR)%.cpp, $(DEPS_DIR)%.d, $(FILES))
 
