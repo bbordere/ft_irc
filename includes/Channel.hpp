@@ -70,7 +70,7 @@ class Channel
 
 		std::size_t getNbUsers(void) const;
 
-		userMap_t	getUsers() const;
+		const userMap_t &	getUsers() const;
 
 		bool	isInvited(User const &user) const;
 

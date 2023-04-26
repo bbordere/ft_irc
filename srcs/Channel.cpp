@@ -349,7 +349,7 @@ std::size_t Channel::getNbUsers(void) const
 	return (_users.size());
 }
 
-Channel::userMap_t	Channel::getUsers(void) const
+const Channel::userMap_t &	Channel::getUsers(void) const
 {
 	return (_users);
 }
