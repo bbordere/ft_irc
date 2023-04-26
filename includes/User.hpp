@@ -31,8 +31,6 @@ class User
 		{
 			AWAY = 1,
 			INVISIBLE,
-			WALLOPS,
-			RESTRICT,
 			OPERATOR,
 		};
 
