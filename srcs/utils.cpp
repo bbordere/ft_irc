@@ -43,16 +43,17 @@ std::string vecToStr(std::vector<std::string> const &vec, std::size_t len)
 	return (res);
 }
 
-void	Server::__joinExistingChan(vec_str_t const &msg, std::string const &name, User const &user)
+void	Server::_joinExistingChan(vec_str_t const &msg, std::string const &name, User const &user)
 {
+	std::cout << msg << '\n';
 	Channel &chan = _channels.at(name);
 	if (!chan.checkJoinConditions(user, msg))
 		return;
 	chan.addUser(user);
-	chan.announceJoin(user, _users, __getChanUsersList(chan));
+	chan.announceJoin(user, _users, _getChanUsersList(chan));
 }
 
-void	Server::__updateChannels(void)
+void	Server::_updateChannels(void)
 {
 	std::vector<std::string> emptyChans;
 	for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it)
@@ -64,7 +65,7 @@ void	Server::__updateChannels(void)
 		_channels.erase(emptyChans[i]);
 }
 
-std::string	Server::__cleanMsg(std::string msg) const
+std::string	Server::_cleanMsg(std::string msg) const
 {
 	std::size_t pos;
 	while ((pos = msg.find("\r\n")) != std::string::npos)
@@ -75,7 +76,7 @@ std::string	Server::__cleanMsg(std::string msg) const
 	return (msg);
 }
 
-bool	Server::__checkNickName(std::string const &nick) const
+bool	Server::_checkNickName(std::string const &nick) const
 {
 	std::string const specChar = "[]\\`_^{|}";
 	if (nick.length() > 9)
@@ -95,7 +96,7 @@ bool	Server::userCompFct(std::string const &nick1, std::string const &nick2)
 	return (nick1 == nick2);
 }
 
-std::string Server::__getChanUsersList(Channel const &chan) const
+std::string Server::_getChanUsersList(Channel const &chan) const
 {
 	std::string res = "";
 
@@ -127,17 +128,17 @@ std::string const Server::formatMsg(std::string const &msg, User const &sender)
 	return (res);
 }
 
-bool	Server::__isMultiArg(std::string const &str)
+bool	Server::_isMultiArg(std::string const &str)
 {
 	return (str.find(":") != std::string::npos);
 }
 
-bool	Server::__isChanRelated(std::string const &str)
+bool	Server::_isChanRelated(std::string const &str)
 {
 	return (str.find("#") != std::string::npos);
 }
 
-Server::map_chan_t::iterator Server::__searchChannel(std::string const &name, User const &user)
+Server::map_chan_t::iterator Server::_searchChannel(std::string const &name, User const &user)
 {
 	std::map<std::string, Channel>::iterator it = _channels.find(name);
 	std::cout << name << '\n';
@@ -170,7 +171,7 @@ std::string Server::getRPLString(RPL::CODE const &rpl, std::string const &arg1, 
 	return (res);
 }
 
-bool	Server::__isChanExist(std::string const &name) const
+bool	Server::_isChanExist(std::string const &name) const
 {
 	return (_channels.count(name));
 }
@@ -185,15 +186,15 @@ std::vector<User>::iterator Server::getUserByNick(std::string const &nick)
 	return (std::find_if(_users.begin(), _users.end(), nickCompByNick(nick)));
 }
 
-void	Server::__usrModeHandling(vec_str_t const &msg, User &user)
+void	Server::_usrModeHandling(vec_str_t const &msg, User &user)
 {
 	if (msg[1] == user.getNickName() && !user.getMode() && msg[2] == "+i")
 		user.setMode(User::INVISIBLE);
 }
 
-void	Server::__changeChanMode(vec_str_t const &msg, User &user)
+void	Server::_changeChanMode(vec_str_t const &msg, User &user)
 {
-	if (!__isChanExist(msg[1]))
+	if (!_isChanExist(msg[1]))
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOSUCHCHANNEL, user.getNickName() + " " + msg[1], ":No such channel"));
 		return;	
@@ -217,7 +218,7 @@ void	Server::__changeChanMode(vec_str_t const &msg, User &user)
 		chan.changeMode(msg, user, _users);
 }
 
-size_t Server::__getUserIndex(std::string const &nick) const
+size_t Server::_getUserIndex(std::string const &nick) const
 {
 	for (std::size_t i = 0; i < _users.size(); ++i)
 	{
@@ -227,7 +228,7 @@ size_t Server::__getUserIndex(std::string const &nick) const
 	return (0);
 }
 
-void	Server::__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user)
+void	Server::_inviteExistingChan(std::string const &chanName, std::string const &target, User const &user)
 {
 	std::vector<User>::const_iterator it = getUserByNick(target);
 	if (it == _users.end())
@@ -259,7 +260,7 @@ void	Server::__inviteExistingChan(std::string const &chanName, std::string const
 	(*it).sendMsg(Server::formatMsg("INVITE " + user.getNickName() + " " + chanName, user));
 }
 
-bool	Server::__checkMsgLen(vec_str_t const &msg, std::size_t const expected, User const &user) const
+bool	Server::_checkMsgLen(vec_str_t const &msg, std::size_t const expected, User const &user) const
 {
 	if (msg.size() < expected)
 	{
@@ -269,7 +270,7 @@ bool	Server::__checkMsgLen(vec_str_t const &msg, std::size_t const expected, Use
 	return (true);
 }
 
-void	Server::__leaveAllChan(User const &user)
+void	Server::_leaveAllChan(User const &user)
 {
 	for (map_chan_t::iterator it = _channels.begin(); it != _channels.end(); ++it)
 	{

@@ -75,87 +75,87 @@ class Server
 
 		bool		_isOn;
 		std::string	const _password;
-		void	__initCmd(void);
+		void	_initCmd(void);
 
-		void	__handleConnection(void);
-		void	__handlePackets(void);
-		void	__authUser(User &user);
-		void	__sendWelcomeMsg(User &user);
-		std::vector<std::string>			__parseCmd(std::string str);
-		bool	__checkMsgLen(vec_str_t const &msg, std::size_t const expected, User const &user) const;
+		void	_handleConnection(void);
+		void	_handlePackets(void);
+		void	_authUser(User &user);
+		void	_sendWelcomeMsg(User &user);
+		std::vector<std::string>			_parseCmd(std::string str);
+		bool	_checkMsgLen(vec_str_t const &msg, std::size_t const expected, User const &user) const;
 
-		void	__joinChannel(vec_str_t const &msg, User &user);
-		void	__disconnectUser(User const &user, std::size_t const &i);
-		void	__leaveChannel(vec_str_t const &name, User &user);
+		void	_joinChannel(vec_str_t const &msg, User &user);
+		void	_disconnectUser(User const &user, std::size_t const &i);
+		void	_leaveChannel(vec_str_t const &name, User &user);
 
-		size_t __getUserIndex(std::string const &nick) const;
+		size_t _getUserIndex(std::string const &nick) const;
 
-		void	__privMsg(vec_str_t const &msg, User &user);
-		void	__userPrivMsg(vec_str_t const &msg, User &user);
+		void	_privMsg(vec_str_t const &msg, User &user);
+		void	_userPrivMsg(vec_str_t const &msg, User &user);
 
-		void	__updateChannels(void);
-		void	__changeChanMode(vec_str_t const &msg, User &user);
+		void	_updateChannels(void);
+		void	_changeChanMode(vec_str_t const &msg, User &user);
 
-		void	__nickCMD(vec_str_t const &msg, User &user);
-		bool	__checkNickName(std::string const &nick) const;
+		void	_nickCMD(vec_str_t const &msg, User &user);
+		bool	_checkNickName(std::string const &nick) const;
 
-		bool	__isChanExist(std::string const &name) const;
+		bool	_isChanExist(std::string const &name) const;
 
-		void	__userCMD(vec_str_t const &msg, User &user);
-		void	__passCMD(vec_str_t const &msg, User &user);
+		void	_userCMD(vec_str_t const &msg, User &user);
+		void	_passCMD(vec_str_t const &msg, User &user);
 
-		void	__killCMD(vec_str_t const &msg, User &user);
+		void	_killCMD(vec_str_t const &msg, User &user);
 
-		void	__kickCMD(vec_str_t const &msg, User &user);
+		void	_kickCMD(vec_str_t const &msg, User &user);
 
-		void	__leaveAllChan(User const &user);
-		void	__quitCMD(vec_str_t const &msg, User &user);
+		void	_leaveAllChan(User const &user);
+		void	_quitCMD(vec_str_t const &msg, User &user);
 
-		void	__operCMD(vec_str_t const &msg, User &user);
-		void	__dieCMD(vec_str_t const &msg, User &user);
+		void	_operCMD(vec_str_t const &msg, User &user);
+		void	_dieCMD(vec_str_t const &msg, User &user);
 
-		void	__awayCMD(vec_str_t const &msg, User &user);
+		void	_awayCMD(vec_str_t const &msg, User &user);
 
-		void	__listCMD(vec_str_t const &msg, User &user);
+		void	_listCMD(vec_str_t const &msg, User &user);
 
-		void	__joinExistingChan(vec_str_t const &msg, std::string const &name, User const &user);
+		void	_joinExistingChan(vec_str_t const &msg, std::string const &name, User const &user);
 
-		void	__inviteCMD(vec_str_t const &msg, User &user);
-		void	__inviteExistingChan(std::string const &chanName, std::string const &target, User const &user);
+		void	_inviteCMD(vec_str_t const &msg, User &user);
+		void	_inviteExistingChan(std::string const &chanName, std::string const &target, User const &user);
 		
-		void	__printDebug(void) const;
+		void	_printDebug(void) const;
 
-		void	__sendPong(vec_str_t const &msg, User &user);
+		void	_sendPong(vec_str_t const &msg, User &user);
 
-		void	__checkClientsStatus(void);
+		void	_checkClientsStatus(void);
 
-		std::string	__cleanMsg(std::string msg) const;
-		std::string __getChanUsersList(Channel const &chan) const;
+		std::string	_cleanMsg(std::string msg) const;
+		std::string _getChanUsersList(Channel const &chan) const;
 
-		void	__usrModeHandling(vec_str_t const &msg, User &user);
+		void	_usrModeHandling(vec_str_t const &msg, User &user);
 
-		void	__noticeCMD(vec_str_t const &msg, User &user);
-		void	__modeCMD(vec_str_t const &msg, User &user);
+		void	_noticeCMD(vec_str_t const &msg, User &user);
+		void	_modeCMD(vec_str_t const &msg, User &user);
 
-		vec_str_t __parseCmd2(std::string str) const;
+		vec_str_t _parseCmd2(std::string str) const;
 
-		static bool	__isMultiArg(std::string const &str);
-		static bool	__isChanRelated(std::string const &str);
+		static bool	_isMultiArg(std::string const &str);
+		static bool	_isChanRelated(std::string const &str);
 
-		bool	__containsCMD(vec_str_t &msg) const;
+		bool	_containsCMD(vec_str_t &msg) const;
 
-		void	__dccParsing(vec_str_t const &msg, User const &user);
+		void	_dccParsing(vec_str_t const &msg, User const &user);
 		
-		void	__topicCMD(vec_str_t const &msg, User &user);
+		void	_topicCMD(vec_str_t const &msg, User &user);
 
-		void	__motdCMD(vec_str_t const &msg, User &user);
+		void	_motdCMD(vec_str_t const &msg, User &user);
 
-		map_chan_t::iterator __searchChannel(std::string const &name, User const &user);
+		map_chan_t::iterator _searchChannel(std::string const &name, User const &user);
 
-		void	__caseHandling(vec_str_t &msg) const;
+		void	_caseHandling(vec_str_t &msg) const;
 
-		bool	__isAuthNeeded(std::string const &msg) const;
-		bool	__authExecHandling(std::string const &cmd, User const &user) const;
+		bool	_isAuthNeeded(std::string const &msg) const;
+		bool	_authExecHandling(std::string const &cmd, User const &user) const;
 
 	public:
 

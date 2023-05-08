@@ -22,11 +22,11 @@ class Channel
 
 		uint8_t	_mode;
 
-		std::string const __formatMsg(std::string const &msg, User const &sender);
-		void	__updateMode(uint8_t const mode);
+		std::string const _formatMsg(std::string const &msg, User const &sender);
+		void	_updateMode(uint8_t const mode);
 
-		void	__addModeSet(std::set<char> &set, std::string::const_iterator first, std::string::const_iterator last, std::string &queue) const;
-		void	__modesParamsHandling(vec_str_t const &msg, std::string const &queue);
+		void	_addModeSet(std::set<char> &set, std::string::const_iterator first, std::string::const_iterator last, std::string &queue) const;
+		void	_modesParamsHandling(vec_str_t const &msg, std::string const &queue);
 	
 	public:
 

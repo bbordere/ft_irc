@@ -32,7 +32,7 @@ Server::Server(uint16_t const &port, std::string const &passwd): _password(numbe
 	_pollingList[0].fd = _fd;
 	_pollingList[0].events = POLLIN;
 	_isOn = true;
-	__initCmd();
+	_initCmd();
 }
 
 Server::~Server(void)
@@ -42,7 +42,7 @@ Server::~Server(void)
 		close(_users[i].getFd());
 }
 
-void	Server::__handleConnection(void)
+void	Server::_handleConnection(void)
 {
 	struct sockaddr_in usrAddr;
 	socklen_t		   sin_size = sizeof(usrAddr);
@@ -86,17 +86,17 @@ void	Server::__handleConnection(void)
 	_users.push_back(newUser);
 }
 
-void	Server::__disconnectUser(User const &user, std::size_t const &i)
+void	Server::_disconnectUser(User const &user, std::size_t const &i)
 {
 	std::cout << "User " << user << " disconected\n";
-	__leaveAllChan(user);
+	_leaveAllChan(user);
 	close(_pollingList[i].fd);
 	_users[i - 1].setFd(-1);
 	_pollingList.erase(_pollingList.begin() + i);
 	_users.erase(_users.begin() + (i - 1));
 }
 
-void	Server::__sendWelcomeMsg(User &user)
+void	Server::_sendWelcomeMsg(User &user)
 {
 	std::string msg2 = "";
 	msg2.append(std::string("00") + numberToString(RPL::WELCOME));
@@ -106,22 +106,22 @@ void	Server::__sendWelcomeMsg(User &user)
 	msg2.append(&user.getAllInfos()[1]);
 	user.sendMsg(msg2);
 	user.sendMsg(user.getAllInfos() + " NICK " + user.getNickName());
-	__motdCMD(vec_str_t(), user);
+	_motdCMD(vec_str_t(), user);
 }
 
-void	Server::__checkClientsStatus(void)
+void	Server::_checkClientsStatus(void)
 {
 	for (std::size_t i = 0; i < _users.size(); ++i)
 	{
 		if (_users[i].isReadyToAuth() && !_users[i].getAuthState() && _users[i].getPassword() == _password)
 		{
 			_users[i].setAuth(true);
-			__sendWelcomeMsg(_users[i]);
+			_sendWelcomeMsg(_users[i]);
 		}
 		else if (_users[i].getLeavingState())
 		{
 			std::cout << "User " << _users[i] << " disconected\n";
-			__leaveAllChan(_users[i]);
+			_leaveAllChan(_users[i]);
 			close(_pollingList[i + 1].fd);
 			_users[i].setFd(-1);
 			_pollingList.erase(_pollingList.begin() + 1 + i);
@@ -130,14 +130,14 @@ void	Server::__checkClientsStatus(void)
 	}
 }
 
-Server::vec_str_t Server::__parseCmd2(std::string str) const
+Server::vec_str_t Server::_parseCmd2(std::string str) const
 {
 	vec_str_t res;
 	vec_str_t cmds = split(str, "\r\n");
 
 	for (std::size_t i = 0; i < cmds.size(); ++i)
 	{
-		cmds[i] = __cleanMsg(cmds[i]);
+		cmds[i] = _cleanMsg(cmds[i]);
 		std::size_t pos;
 		while ((pos = cmds[i].find(" ")) != std::string::npos)
 		{
@@ -160,7 +160,7 @@ Server::vec_str_t Server::__parseCmd2(std::string str) const
 	return (res);
 }
 
-void	Server::__dccParsing(vec_str_t const &msg, User const &user)
+void	Server::_dccParsing(vec_str_t const &msg, User const &user)
 {
 	std::string toParse = msg.back();
 	vec_str_t sp = split(&toParse[1], " ");
@@ -173,7 +173,7 @@ void	Server::__dccParsing(vec_str_t const &msg, User const &user)
 	(*target).sendMsg(user.getAllInfos() + " PRIVMSG " + (*target).getNickName() + " " + msg[2] + "\r\n");
 }
 
-bool	Server::__containsCMD(vec_str_t &msg) const
+bool	Server::_containsCMD(vec_str_t &msg) const
 {
 	std::string const cmdHandled[] = {"CAP", "PASS", "USER", "NICK", "JOIN", "PART", "PING", "PRIVMSG", 
 									"NOTICE", "MODE", "TOPIC", "MOTD", "INVITE", "KICK", "QUIT",
@@ -192,14 +192,14 @@ bool	Server::__containsCMD(vec_str_t &msg) const
 	return (false);
 }
 
-void	Server::__caseHandling(vec_str_t &msg) const
+void	Server::_caseHandling(vec_str_t &msg) const
 {
 	std::transform(msg[0].begin(), msg[0].end(), msg[0].begin(), ::toupper);
 	if (msg.size() >= 2 && msg[1].find("#") != std::string::npos)
 		std::transform(msg[1].begin(), msg[1].end(), msg[1].begin(), ::toupper);
 }
 
-void	Server::__handlePackets(void)
+void	Server::_handlePackets(void)
 {
 	for (std::size_t i = 1; i < _pollingList.size(); ++i)
 	{
@@ -211,7 +211,7 @@ void	Server::__handlePackets(void)
 			if (bytes < 0)
 				std::cerr << "recv() failed\n";
 			else if (!bytes)
-				__disconnectUser(_users[i - 1], i);
+				_disconnectUser(_users[i - 1], i);
 			else
 			{
 				_users[i - 1].getBuffer() += buffer;
@@ -225,29 +225,29 @@ void	Server::__handlePackets(void)
 				        _users[i - 1].sendMsg(Server::getRPLString(RPL::RPL_UNAWAY, "", "", ""));
 				}
 
-				vecCmd = __parseCmd2(_users[i - 1].getBuffer());
+				vecCmd = _parseCmd2(_users[i - 1].getBuffer());
 				if (vecCmd.empty())
 					continue;
 				bool isCommand = true;
 				while (isCommand)
 				{
-					__caseHandling(vecCmd);
-					if (!__authExecHandling(vecCmd[0], _users[i - 1]))
+					_caseHandling(vecCmd);
+					if (!_authExecHandling(vecCmd[0], _users[i - 1]))
 						break;
 					std::map<std::string, ptrFonction>::iterator it = _serverCmd.find(vecCmd[0]);
 					if (it != _serverCmd.end())
 						(this->*(it->second))(vecCmd, _users[i - 1]);
-					isCommand = __containsCMD(vecCmd);
+					isCommand = _containsCMD(vecCmd);
 				}
 				_users[i - 1].getBuffer().clear();
 			}
 		}
 	}
-	__checkClientsStatus();
-	__updateChannels();
+	_checkClientsStatus();
+	_updateChannels();
 }
 
-void	Server::__printDebug(void) const
+void	Server::_printDebug(void) const
 {
 	std::cout << "\033[2J" << std::flush;
 	std::cout << "------CHANNEL------" << '\n';
@@ -262,7 +262,7 @@ void	Server::__printDebug(void) const
 	std::cout << _users << '\n';
 }
 
-std::vector<std::string> Server::__parseCmd(std::string str) {
+std::vector<std::string> Server::_parseCmd(std::string str) {
     std::vector<std::string> cmd;
 
     if (str[0] != ':')
@@ -286,16 +286,16 @@ void	Server::run(void)
 		if (poll(&_pollingList[0], _pollingList.size(), -1) < 0)
 			throw (ServerFailureException("poll"));
 		if (_pollingList[0].revents & POLLIN)
-			__handleConnection();
+			_handleConnection();
 		else
-			__handlePackets();
-		__printDebug();
+			_handlePackets();
+		_printDebug();
 	}
 }
 
-bool	Server::__authExecHandling(std::string const &cmd, User const &user) const
+bool	Server::_authExecHandling(std::string const &cmd, User const &user) const
 {
-	if (__isAuthNeeded(cmd) && !user.getAuthState())
+	if (_isAuthNeeded(cmd) && !user.getAuthState())
 	{
 		user.sendMsg(Server::getRPLString(RPL::ERR_NOTREGISTERED, user.getNickName(), ":You have not registered !"));
 		return (false);
@@ -304,7 +304,7 @@ bool	Server::__authExecHandling(std::string const &cmd, User const &user) const
 }
 
 
-bool	Server::__isAuthNeeded(std::string const &msg) const
+bool	Server::_isAuthNeeded(std::string const &msg) const
 {
 	std::string authCmds[] = {"CAP", "PASS", "NICK", "USER"};
 	return (std::find(authCmds, authCmds + 4, msg) == authCmds + 4);

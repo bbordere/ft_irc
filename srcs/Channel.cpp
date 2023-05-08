@@ -77,7 +77,7 @@ void	Channel::setKey(std::string const &key)
 	_key = key;
 }
 
-void	Channel::__addModeSet(std::set<char> &set, std::string::const_iterator first, std::string::const_iterator last, std::string &queue) const
+void	Channel::_addModeSet(std::set<char> &set, std::string::const_iterator first, std::string::const_iterator last, std::string &queue) const
 {
 	std::string const possibilities = "+-imnptkl";
 	std::string const modeWithParams = "kl";
@@ -92,7 +92,7 @@ void	Channel::__addModeSet(std::set<char> &set, std::string::const_iterator firs
 	}
 }
 
-void	Channel::__modesParamsHandling(vec_str_t const &msg, std::string const &queue)
+void	Channel::_modesParamsHandling(vec_str_t const &msg, std::string const &queue)
 {
 	for (std::size_t i = 0; i < queue.size(); ++i)
 	{
@@ -110,7 +110,7 @@ void	Channel::__modesParamsHandling(vec_str_t const &msg, std::string const &que
 			else
 			{
 				uint8_t curMode = getMode();
-				__updateMode(CLEAR_N_BIT(curMode, Channel::KEY_LOCK));
+				_updateMode(CLEAR_N_BIT(curMode, Channel::KEY_LOCK));
 				setKey("");
 			}
 		}
@@ -135,15 +135,15 @@ bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> con
 	{
 		pos = msg[2].find_first_of("+-", pos + 1);
 		if (pos == std::string::npos)
-			__addModeSet(modes, msg[2].begin() + i, msg[2].end(), argWithParamsQueue);
+			_addModeSet(modes, msg[2].begin() + i, msg[2].end(), argWithParamsQueue);
 		else
-			__addModeSet(modes, msg[2].begin() + i,msg[2].begin() + pos, argWithParamsQueue);
+			_addModeSet(modes, msg[2].begin() + i,msg[2].begin() + pos, argWithParamsQueue);
 		i = pos;
 		if (*modes.begin() == '+')
 		{
 			for (std::set<char>::const_iterator it = ++modes.begin(); it != modes.end(); ++it)
 			{
-				__updateMode(SET_N_BIT(curMode, (possibilities.find(*it) + 1)));
+				_updateMode(SET_N_BIT(curMode, (possibilities.find(*it) + 1)));
 				broadcast(user.getAllInfos() + " MODE " + msg[1] + " +" + *it, users);
 			}
 		}
@@ -151,11 +151,11 @@ bool	Channel::changeMode(vec_str_t const &msg, User &user, std::vector<User> con
 		{
 			for (std::set<char>::const_iterator it = ++modes.begin(); it != modes.end(); ++it)
 			{
-				__updateMode(CLEAR_N_BIT(curMode, (possibilities.find(*it) + 1)));
+				_updateMode(CLEAR_N_BIT(curMode, (possibilities.find(*it) + 1)));
 				broadcast(user.getAllInfos() + " MODE " + msg[1] + " -" + *it, users);
 			}
 		}
-		__modesParamsHandling(msg, argWithParamsQueue);
+		_modesParamsHandling(msg, argWithParamsQueue);
 		modes.clear();
 		argWithParamsQueue.clear();
 	}
@@ -204,7 +204,7 @@ bool	Channel::checkModifCondition(User const &user) const
 	return (true);
 }
 
-void	Channel::__updateMode(uint8_t const mode)
+void	Channel::_updateMode(uint8_t const mode)
 {
 	_mode = mode;
 }
@@ -290,7 +290,7 @@ bool	Channel::checkSendConditions(User const &user) const
 	return (true);
 }
 
-std::string const Channel::__formatMsg(std::string const &msg, User const &sender)
+std::string const Channel::_formatMsg(std::string const &msg, User const &sender)
 {
 	std::vector<std::string> sp = split(msg, " ");
 	std::string res = sender.getAllInfos() + " ";

@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <signal.h>
 #include <fcntl.h>
